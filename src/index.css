@@ -1,0 +1,11 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #050c18;
+  color: #c8d8e8;
+  -webkit-font-smoothing: antialiased;
+}
