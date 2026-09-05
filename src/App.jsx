@@ -33,7 +33,7 @@ export default function App() {
     setAllSignals(prev => [signal, ...prev]);
   }
 
-  // ⭐ DYNAMIC LESSON ROUTE — MUST BE ABOVE THE SWITCH
+  
   if (page.startsWith("/learn/")) {
     const lessonId = page.replace("/learn/", "");
     return (
@@ -48,7 +48,7 @@ export default function App() {
     );
   }
 
-  // ⭐ NORMAL ROUTES
+  
   switch (page) {
     case "/":
     case "/home":
