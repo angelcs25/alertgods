@@ -1,8 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// SIGNALOS AUTONOMOUS SCANNER
-// Run with: node scanner.js
-// Keep this running on your computer during market hours.
-// Your React app reads signals from this via http://localhost:3001
+// ALERTGODS SCANNER — scanner.js
+// Run: node scanner.js
+// Keep running with: pm2 start scanner.js --name alertgods-scanner
 // ─────────────────────────────────────────────────────────────────────────────
 
 import express from "express";
@@ -11,144 +10,203 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
-import { scanAllTickers } from "./tradier.js";
-import { analyzeWithClaude } from "src/services/claude.js";
-import { sendDiscord } from "./notify.js";
+
+import { initSchwab, getAuthUrl, exchangeCode, fetchQuotes, fetchOptionsChain, isAuthorized } from "./schwab.js";
+import { analyzeWithClaude } from "./claude.js";
+import { dispatchSignal, dispatchSkip, setSubscribers } from "./notify.js";
 import { isMarketOpen, getMarketPhase, getScanInterval } from "./marketHours.js";
 
-config(); // load .env
+config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SIGNALS_FILE = path.join(__dirname, "signals.json");
-const PORT = 3001;
+const SIGNALS_FILE    = path.join(__dirname, "signals.json");
+const SUBSCRIBERS_FILE = path.join(__dirname, "subscribers.json");
+const PORT = process.env.PORT || 3001;
 
-// ─── State ────────────────────────────────────────────────────────────────────
-let signals = [];
-let scanLog = [];
+// Tickers to scan — equities + futures
+const EQUITY_TICKERS  = ["SPY","QQQ","IWM","AAPL","TSLA","NVDA","MSFT","AMZN","META","AMD","AVGO"];
+const FUTURES_TICKERS = ["/ES", "/NQ"]; // PRO ONLY — Schwab supports these natively
+const SKIP_IN_MID     = ["TSLA","AMD","AVGO"]; // too erratic mid-day for 0DTE
+
+let signals    = [];
+let scanLog    = [];
 let isScanning = false;
 let nextScanAt = null;
-let scanTimer = null;
-let stats = { totalScans: 0, signalsGenerated: 0, signalsSkipped: 0, lastScan: null };
+let scanTimer  = null;
+let stats      = { totalScans: 0, signalsGenerated: 0, signalsSkipped: 0, lastScan: null };
 
-// Load saved signals on startup
-async function loadSignals() {
+// ─── Load persisted data ──────────────────────────────────────────────────────
+
+async function loadData() {
   try {
-    const data = await fs.readFile(SIGNALS_FILE, "utf8");
-    signals = JSON.parse(data);
-    console.log(`📂 Loaded ${signals.length} saved signals`);
+    signals = JSON.parse(await fs.readFile(SIGNALS_FILE, "utf8"));
+    console.log(`  Loaded ${signals.length} saved signals`);
+  } catch { signals = []; }
+
+  try {
+    const subs = JSON.parse(await fs.readFile(SUBSCRIBERS_FILE, "utf8"));
+    setSubscribers(subs);
+    console.log(`  Loaded subscribers`);
   } catch {
-    signals = [];
+    setSubscribers({ free: [], pro: [] });
   }
 }
 
 async function saveSignals() {
-  await fs.writeFile(SIGNALS_FILE, JSON.stringify(signals.slice(0, 200), null, 2));
+  await fs.writeFile(SIGNALS_FILE, JSON.stringify(signals.slice(0, 300), null, 2));
 }
 
-// ─── Core scan logic ──────────────────────────────────────────────────────────
+// ─── Core scan ────────────────────────────────────────────────────────────────
+
 async function runScan() {
-  if (isScanning) return;
+  if (isScanning) { console.log("  Scan already running — skipping"); return; }
+  if (!isAuthorized()) { console.warn("  [Schwab] Not authorized — skipping scan. Visit /auth"); scheduleNextScan(); return; }
+
   isScanning = true;
   const phase = getMarketPhase();
-  const scanStart = new Date();
-  
-  console.log(`\n🔍 [${scanStart.toLocaleTimeString()}] Scan starting — market phase: ${phase}`);
-  stats.totalScans++;
-  stats.lastScan = scanStart;
+  const start = new Date();
+  console.log(`\n🔍 [${start.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false })} ET] Scanning — phase: ${phase}`);
 
-  const log = { ts: scanStart, phase, results: [] };
+  stats.totalScans++;
+  stats.lastScan = start;
+  const log = { ts: start.toISOString(), phase, results: [] };
+
+  // Determine which tickers to scan this phase
+  let equities = phase === "MID"
+    ? EQUITY_TICKERS.filter(t => !SKIP_IN_MID.includes(t))
+    : EQUITY_TICKERS;
+
+  const allTickers = [...equities, ...FUTURES_TICKERS];
 
   try {
-    // 1. Fetch market data for all tickers
-    console.log("  📡 Fetching market data...");
-    const marketData = await scanAllTickers(phase);
+    // 1. Batch fetch all quotes
+    console.log(`  Fetching quotes for: ${allTickers.join(", ")}`);
+    const quotes = await fetchQuotes(allTickers);
 
-    // 2. Analyze each ticker with Claude
-    for (const data of marketData) {
+    // 2. Analyze each ticker
+    for (const ticker of allTickers) {
+      const quote = quotes[ticker];
+      if (!quote?.price) {
+        log.results.push({ ticker, result: "no quote" });
+        continue;
+      }
+
       try {
-        console.log(`  🤖 Analyzing ${data.ticker}...`);
-        const result = await analyzeWithClaude(data, phase);
+        // Fetch options chain for equities (not futures)
+        let chain = null;
+        if (!ticker.startsWith("/")) {
+          chain = await fetchOptionsChain(ticker, 5);
+        }
+
+        console.log(`  Analyzing ${ticker} @ $${quote.price}...`);
+        const result = await analyzeWithClaude(ticker, quote, chain, phase);
 
         if (result.skip) {
-          console.log(`     ↳ ${data.ticker}: no setup`);
-          log.results.push({ ticker: data.ticker, result: "no setup" });
+          console.log(`     ↳ Skip: ${result.reason}`);
+          log.results.push({ ticker, result: "no setup" });
           stats.signalsSkipped++;
+          await dispatchSkip(ticker, result.reason);
         } else {
-          console.log(`     ↳ ${data.ticker}: ${result.side} ${result.type} ${result.confidence}% conf ✅`);
-          log.results.push({ ticker: data.ticker, result: `${result.side} ${result.type} @ ${result.confidence}%` });
+          console.log(`     ↳ SIGNAL: ${result.side} ${result.type} ${result.expiry} @ ${result.confidence}% ✅`);
+          log.results.push({ ticker, result: `${result.side} ${result.type} ${result.expiry} ${result.confidence}%` });
           stats.signalsGenerated++;
 
           const signal = {
             ...result,
-            id: Date.now() + Math.random(),
+            ticker,
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             ts: new Date().toISOString(),
-            delivered: false,
-            aiGenerated: true,
             phase,
+            aiGenerated: true,
+            status: "pending",
+            delivered: false,
           };
 
-          // Add to signals list
-          signals = [signal, ...signals].slice(0, 200);
+          signals = [signal, ...signals].slice(0, 300);
           await saveSignals();
-
-          // Fire Discord notification
-          if (process.env.DISCORD_WEBHOOK) {
-            await sendDiscord(process.env.DISCORD_WEBHOOK, signal);
-            signal.delivered = true;
-            await saveSignals();
-          }
+          await dispatchSignal(signal);
+          signal.delivered = true;
+          await saveSignals();
         }
 
-        // Small delay between Claude calls to avoid rate limits
-        await sleep(1200);
-
-      } catch (err) {
-        console.log(`     ↳ ${data.ticker}: error — ${err.message}`);
-        log.results.push({ ticker: data.ticker, result: `error: ${err.message}` });
+        await sleep(1200); // Rate limit buffer between Claude calls
+      } catch (e) {
+        console.error(`  ✗ ${ticker}: ${e.message}`);
+        log.results.push({ ticker, result: `error: ${e.message}` });
       }
     }
-  } catch (err) {
-    console.error("  ❌ Scan error:", err.message);
-    log.error = err.message;
+  } catch (e) {
+    console.error("  ✗ Scan error:", e.message);
+    log.error = e.message;
   }
 
   scanLog = [log, ...scanLog].slice(0, 50);
   isScanning = false;
-  console.log(`  ✓ Scan complete in ${((Date.now() - scanStart) / 1000).toFixed(1)}s`);
-
-  // Schedule next scan
+  console.log(`  ✓ Done in ${((Date.now() - start) / 1000).toFixed(1)}s\n`);
   scheduleNextScan();
 }
 
 function scheduleNextScan() {
   if (scanTimer) clearTimeout(scanTimer);
-
   const phase = getMarketPhase();
   if (phase === "CLOSED") {
-    console.log("  💤 Market closed — will check again in 5 minutes");
     nextScanAt = new Date(Date.now() + 5 * 60 * 1000);
     scanTimer = setTimeout(scheduleNextScan, 5 * 60 * 1000);
+    console.log(`  💤 Market closed — next check ${nextScanAt.toLocaleTimeString()}`);
     return;
   }
-
-  const intervalMs = getScanInterval(phase);
-  nextScanAt = new Date(Date.now() + intervalMs);
-  console.log(`  ⏱ Next scan in ${intervalMs / 60000} min at ${nextScanAt.toLocaleTimeString()}`);
-  scanTimer = setTimeout(runScan, intervalMs);
+  const ms = getScanInterval(phase);
+  nextScanAt = new Date(Date.now() + ms);
+  scanTimer = setTimeout(runScan, ms);
+  console.log(`  ⏱ Next scan: ${nextScanAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false })} ET (${ms / 60000}min)`);
 }
 
-// ─── Express API for React frontend ──────────────────────────────────────────
+// ─── Express API ──────────────────────────────────────────────────────────────
+
 const app = express();
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
 app.use(express.json());
 
-// Get all signals (newest first)
-app.get("/api/signals", (req, res) => {
-  const limit = parseInt(req.query.limit) || 100;
-  res.json(signals.slice(0, limit));
+// ── Schwab OAuth routes ───────────────────────────────────────────────────────
+
+// Step 1: Visit this to start auth
+app.get("/auth", (req, res) => {
+  const url = getAuthUrl();
+  res.redirect(url);
 });
 
-// Get scanner status
+// Step 2: Schwab redirects here with the auth code
+app.get("/callback", async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send("No auth code received");
+  try {
+    await exchangeCode(code);
+    res.send(`
+      <html><body style="font-family:monospace;background:#050c18;color:#00c97a;padding:40px">
+        <h2>✓ Schwab Connected</h2>
+        <p>AlertGods scanner is now authorized to access your Schwab account.</p>
+        <p>Tokens saved. You can close this window.</p>
+        <p style="color:#3a5a7a">Access tokens expire in 30 min (auto-refreshed). Refresh tokens expire in 7 days — re-visit /auth to renew.</p>
+      </body></html>
+    `);
+  } catch (e) {
+    res.status(500).send(`Auth failed: ${e.message}`);
+  }
+});
+
+// ── Signal API ────────────────────────────────────────────────────────────────
+
+app.get("/api/signals", (req, res) => {
+  const { plan = "free", limit = 100 } = req.query;
+  let filtered = signals.slice(0, parseInt(limit));
+
+  // Gate futures signals to Pro only
+  if (plan !== "pro") {
+    filtered = filtered.filter(s => !s.isFutures && !s.ticker?.startsWith("/"));
+  }
+  res.json(filtered);
+});
+
 app.get("/api/status", (req, res) => {
   res.json({
     isScanning,
@@ -156,57 +214,60 @@ app.get("/api/status", (req, res) => {
     marketPhase: getMarketPhase(),
     nextScanAt,
     scanInterval: getScanInterval(getMarketPhase()),
+    schwabAuthorized: isAuthorized(),
     stats,
     lastLog: scanLog[0] || null,
   });
 });
 
-// Get scan logs
-app.get("/api/logs", (req, res) => {
-  res.json(scanLog.slice(0, 20));
-});
-
-// Trigger a manual scan
-app.post("/api/scan", async (req, res) => {
-  if (isScanning) return res.json({ ok: false, message: "Scan already running" });
-  res.json({ ok: true, message: "Scan started" });
-  runScan(); // don't await — runs in background
-});
-
-// Mark a signal as approved/dismissed
-app.patch("/api/signals/:id", (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body; // "approved" | "dismissed"
-  signals = signals.map(s =>
-    String(s.id) === String(id) ? { ...s, status } : s
-  );
-  saveSignals();
-  res.json({ ok: true });
-});
-
-// Health check
+app.get("/api/logs", (req, res) => res.json(scanLog.slice(0, 20)));
 app.get("/api/health", (req, res) => res.json({ ok: true, ts: new Date() }));
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+app.post("/api/scan", async (req, res) => {
+  if (isScanning) return res.json({ ok: false, message: "Scan already running" });
+  res.json({ ok: true, message: "Scan triggered" });
+  runScan();
+});
+
+// ── Stripe webhook — auto-add/remove Pro subscribers ─────────────────────────
+// (See stripe.js for the full implementation)
+app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  try {
+    const { handleStripeWebhook } = await import("./stripe.js");
+    await handleStripeWebhook(req.body, sig);
+    res.json({ received: true });
+  } catch (e) {
+    console.error("Stripe webhook error:", e.message);
+    res.status(400).send(`Webhook Error: ${e.message}`);
+  }
+});
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+
 async function start() {
-  await loadSignals();
+  await loadData();
+  await initSchwab();
+
   app.listen(PORT, () => {
-    console.log(`\n◈ SIGNALOS SCANNER`);
-    console.log(`  API running at http://localhost:${PORT}`);
-    console.log(`  Market phase: ${getMarketPhase()}`);
-    console.log(`  Scan interval: ${getScanInterval(getMarketPhase()) / 60000} min\n`);
+    console.log(`\n◈ ALERTGODS SCANNER`);
+    console.log(`  API:  http://localhost:${PORT}`);
+    console.log(`  Auth: http://localhost:${PORT}/auth  ← visit this to connect Schwab`);
+    console.log(`  Phase: ${getMarketPhase()}`);
+    if (!process.env.ANTHROPIC_API_KEY) console.error("  ✗ ANTHROPIC_API_KEY missing");
+    if (!process.env.TWILIO_ACCOUNT_SID) console.warn("  ⚠ Twilio not configured — SMS disabled");
+    if (!process.env.DISCORD_WEBHOOK_FREE) console.warn("  ⚠ DISCORD_WEBHOOK_FREE not set");
+    if (!process.env.DISCORD_WEBHOOK_PRO) console.warn("  ⚠ DISCORD_WEBHOOK_PRO not set");
+    console.log();
   });
 
-  // Start first scan immediately if market is open, else schedule
   if (isMarketOpen()) {
-    console.log("  📈 Market is open — starting first scan...");
+    console.log("  📈 Market open — starting scan...");
     await runScan();
   } else {
-    console.log("  🌙 Market is closed — waiting for open...");
     scheduleNextScan();
   }
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
 start().catch(console.error);
