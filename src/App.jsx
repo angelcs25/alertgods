@@ -79,14 +79,16 @@ export default function App() {
 
     case "/signup/success":
       return (
-        <div style={{ fontFamily:"'DM Sans',sans-serif", background:"#050c18", color:"#c8d8e8", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", textAlign:"center", padding:40 }}>
+        <div style={{ fontFamily: "'DM Sans',sans-serif", background: "#050c18", color: "#c8d8e8", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 40 }}>
           <div>
-            <div style={{ fontSize:48, marginBottom:20 }}>✓</div>
-            <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:32, fontWeight:800, color:"#e8f0f8", marginBottom:12 }}>Welcome to Pro</h1>
-            <p style={{ fontSize:15, color:"#5a7a9a", marginBottom:32, lineHeight:1.8 }}>
+            <div style={{ fontSize: 48, marginBottom: 20 }}>✓</div>
+            <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 32, fontWeight: 800, color: "#e8f0f8", marginBottom: 12 }}>
+              Welcome to Pro
+            </h1>
+            <p style={{ fontSize: 15, color: "#5a7a9a", marginBottom: 32, lineHeight: 1.8 }}>
               Your subscription is active. Log in with your email to access the signal dashboard.
             </p>
-            <button onClick={() => navigate("/login")} style={{ background:"#00c97a", color:"#030f08", border:"none", padding:"14px 32px", borderRadius:3, fontSize:15, fontWeight:700, cursor:"pointer" }}>
+            <button onClick={() => navigate("/login")} style={{ background: "#00c97a", color: "#030f08", border: "none", padding: "14px 32px", borderRadius: 3, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
               Go to Dashboard →
             </button>
           </div>
