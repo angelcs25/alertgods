@@ -1,6 +1,6 @@
 // src/pages/LoginPage.jsx
 import { useState } from "react";
-import useAuth from "./services/useAuth";
+import useAuth from "../services/useAuth";
 
 export default function LoginPage({ onNavigate = () => {}, onLogin }) {
   const [email, setEmail]   = useState("");
