@@ -272,7 +272,27 @@ export default function LandingPage({ onNavigate = () => {} }) {
         }
         .plan-card:hover { transform: translateY(-4px); }
         .plan-card.featured { border-color: #1a4a3a; background: #060f14; }
-
+        
+        .pricing-scroll-hint { display: none; }
+        @media (max-width: 680px) {
+          .pricing-track {
+            display: flex !important;
+            flex-direction: row !important;
+            overflow-x: auto !important;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            gap: 12px !important;
+            padding-bottom: 16px;
+            scrollbar-width: none;
+          }
+        .pricing-track::-webkit-scrollbar { display: none; }
+        .plan-card {
+          min-width: 80vw !important;
+          scroll-snap-align: center;
+          flex-shrink: 0;
+        }
+        .pricing-scroll-hint { display: flex !important; }
+        }     
         .grid-bg {
           position: absolute;
           inset: 0;
@@ -335,8 +355,8 @@ export default function LandingPage({ onNavigate = () => {} }) {
   >{l}</button>))}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button className="cta-ghost" style={{ padding: "8px 18px", fontSize: 12 }}>Log In</button>
-          <button className="cta-primary" style={{ padding: "8px 18px", fontSize: 12 }}>Join Now</button>
+          <button className="cta-ghost"   style={{ padding: "8px 18px", fontSize: 12 }} onClick={() => onNavigate("/login")}>Log In</button>
+          <button className="cta-primary" style={{ padding: "8px 18px", fontSize: 12 }} onClick={() => onNavigate("/signup/free")}>Join Now</button>
         </div>
       </nav>
 
@@ -376,7 +396,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
                 <button className="cta-primary" onClick={() => onNavigate("/signup/free")}>Start For Free →</button>
                 {/* <button className="cta-ghost">View Performance</button> */}
-                <button className="cta-primary" onClick={() => onNavigate("/dashboard")}>Join Now</button>
+                <button className="cta-primary" onClick={() => onNavigate("/signup/free")}>Join Now</button>
               </div>
 
               <div style={{ display: "flex", gap: 28 }}>
@@ -512,7 +532,11 @@ export default function LandingPage({ onNavigate = () => {} }) {
             <p style={{ fontSize: 14, color: "#3a5a7a", marginTop: 12 }}>Cancel anytime. No hidden fees.</p>
           </div>
         </AnimSection>
-        <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
+        <div style={{ textAlign: "center", display: "none" }} className="pricing-scroll-hint">
+          <span style={{ fontSize: 12, color: "#2a4060" }}>← Swipe to see plans →</span>
+        </div>
+        <div className="pricing-track" style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
+  
           {PLANS.map((p, i) => (
             <AnimSection key={i} delay={i * 0.1}>
               <div className={`plan-card${p.featured ? " featured" : ""}`} style={{ position: "relative" }}>
