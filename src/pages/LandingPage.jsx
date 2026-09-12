@@ -328,9 +328,9 @@ export default function LandingPage({ onNavigate = () => {} }) {
               "About": "/about", 
               // "Performance": "/performance",
               "Learn to Trade": "/learn",
-              "Pricing": "/#pricing",
+              "Pricing": "scroll-pricing",
             };
-      onNavigate(routes[l] || "/");
+      const r = routes[l]; if (r === "scroll-pricing") { const el = document.getElementById("pricing"); if (el) el.scrollIntoView({ behavior: "smooth" }); } else onNavigate(r || "/");
     }}
   >{l}</button>))}
         </div>
@@ -376,7 +376,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
                 <button className="cta-primary" onClick={() => onNavigate("/signup/free")}>Start For Free →</button>
                 {/* <button className="cta-ghost">View Performance</button> */}
-                <button className="cta-primary" onClick={() => onNavigate("/signup/free")}>Join Now</button>
+                <button className="cta-primary" onClick={() => onNavigate("/dashboard")}>Join Now</button>
               </div>
 
               <div style={{ display: "flex", gap: 28 }}>
@@ -504,7 +504,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
       </section> */}
 
       {/* ── PRICING ── */}
-      <section style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
+      <section id="pricing" style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
         <AnimSection>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <div className="section-label">SIMPLE PRICING</div>
@@ -512,7 +512,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
             <p style={{ fontSize: 14, color: "#3a5a7a", marginTop: 12 }}>Cancel anytime. No hidden fees.</p>
           </div>
         </AnimSection>
-        <div id= "pricing" style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
+        <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
           {PLANS.map((p, i) => (
             <AnimSection key={i} delay={i * 0.1}>
               <div className={`plan-card${p.featured ? " featured" : ""}`} style={{ position: "relative" }}>

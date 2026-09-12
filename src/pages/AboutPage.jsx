@@ -187,7 +187,14 @@ export default function AboutPage({ onNavigate = () => {} }) {
         </a>
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
           {["About","Learn to Trade","Pricing"].map(l => (
-            <button key={l} className="nav-link" style={{ color: l === "About" ? "#c8d8e8" : undefined }}>{l}</button>
+            <button key={l} className="nav-link"
+              style={{ color: l === "About" ? "#c8d8e8" : undefined }}
+              onClick={() => {
+                if (l === "Pricing") { onNavigate("/"); setTimeout(() => { const el = document.getElementById("pricing"); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 300); return; }
+                const routes = { "About": "/about", "Learn to Trade": "/learn" };
+                onNavigate(routes[l] || "/");
+              }}
+            >{l}</button>
           ))}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -353,7 +360,7 @@ export default function AboutPage({ onNavigate = () => {} }) {
               Start For Free. Full access, no credit card required.
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button className="cta-primary">Start For Freel →</button>
+              <button className="cta-primary" onClick={() => onNavigate("/signup/free")}>Start For Free →</button>
               {/* <button className="cta-ghost">View Performance</button> */}
             </div>
           </AnimSection>
