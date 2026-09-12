@@ -389,7 +389,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
           <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ ALERTGODS</span>
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {[["About", "/about"], ["Learn to Trade", "/learn"], ["Pricing", "/"]].map(([l, path]) => (
+          {[["About", "/about"], ["Learn to Trade", "/learn"], ["Pricing", "/#pricing"], ["Dashboard", "/login"]].map(([l, path]) => (
             <button key={l} className="nav-link" onClick={() => onNavigate(path)}
               style={{ color: l === "Learn to Trade" ? "#c8d8e8" : undefined }}>
               {l}
@@ -418,7 +418,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
             </p>
             <div style={{ display: "flex", gap: 12 }}>
               <button className="cta-primary" onClick={() => document.getElementById("modules")?.scrollIntoView({ behavior: "smooth" })}>Browse Modules →</button>
-              <button className="cta-ghost" onClick={() => onNavigate("/login")}>View Signals</button>
+              <button className="cta-ghost" onClick={() => onNavigate("/login")}>View Live Signals</button>
             </div>
           </AnimSection>
         </div>
@@ -585,7 +585,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
               <button className="cta-primary" onClick={() => onNavigate("/")}>Start For Free →</button>
-              <button className="cta-ghost" onClick={() => onNavigate("/login")}>View Signals</button>
+              <button className="cta-ghost" onClick={() => onNavigate("/login")}>View Live Signals</button>
             </div>
           </AnimSection>
         </div>

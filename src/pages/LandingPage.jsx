@@ -328,7 +328,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
               "About": "/about", 
               // "Performance": "/performance",
               "Learn to Trade": "/learn",
-              "Pricing": "/",
+              "Pricing": "/#pricing",
             };
       onNavigate(routes[l] || "/");
     }}
@@ -512,7 +512,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
             <p style={{ fontSize: 14, color: "#3a5a7a", marginTop: 12 }}>Cancel anytime. No hidden fees.</p>
           </div>
         </AnimSection>
-        <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
+        <div id= "pricing" style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
           {PLANS.map((p, i) => (
             <AnimSection key={i} delay={i * 0.1}>
               <div className={`plan-card${p.featured ? " featured" : ""}`} style={{ position: "relative" }}>
