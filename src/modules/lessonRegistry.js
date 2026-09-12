@@ -124,10 +124,10 @@ export const LESSONS = [
 export const MODULE_FIRST_LESSON = {
   "options-basics":    "what-is-an-option",
   "reading-greeks":    "what-is-delta",
-  "0dte-strategies":   "what-0-5dte-means",   // not written yet
+  "0dte-strategies":   "what-0-5-dte-means",   // not written yet
   "futures-scalping":  "futures-vs-stocks-vs-options",
-  "risk-management":   "null",
+  "risk-management":   "max-risk-per-trade",
   // "order-flow":        null,
   // "chart-patterns":    null,
-  "position-sizing":   null,
+  "position-sizing":   "account-size-buckets",
 };
