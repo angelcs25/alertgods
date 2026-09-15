@@ -144,7 +144,7 @@ export default function FreeSignupPage({ onNavigate = () => {} }) {
       {/* Nav */}
       <nav style={{ padding: "0 40px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #0a1828" }}>
         <button onClick={() => onNavigate("/")} style={{ background: "none", border: "none", cursor: "pointer" }}>
-          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ SIGNALOS</span>
+          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ALERTGODS</span>
         </button>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <span style={{ fontSize: 13, color: "#3a5a7a" }}>Already have an account?</span>

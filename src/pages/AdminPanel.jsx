@@ -46,10 +46,10 @@ export default function AdminPanel({ onPublish, onNavigate, allSignals = [] }) {
           <span style={{ color: "#2a4060", fontSize: 10, letterSpacing: "0.1em" }}>ADMIN</span>
         </div>
         <button
-          onClick={() => onNavigate?.("/dashboard")}
+          onClick={() => onNavigate?.("/login")}
           style={{ background: "none", border: "1px solid #1a2530", color: "#4a6a8a", fontFamily: mono, fontSize: 10, padding: "5px 12px", borderRadius: 2, cursor: "pointer", letterSpacing: "0.08em" }}
         >
-          ← BACK TO DASHBOARD
+          ← SUBSCRIBER VIEW
         </button>
       </div>
 
