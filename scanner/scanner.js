@@ -229,6 +229,30 @@ app.post("/api/scan", async (req, res) => {
   runScan();
 });
 
+// This lets the frontend verify a subscriber's email and get their plan
+app.post("/api/verify", (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Email required" });
+
+  const normalized = email.toLowerCase().trim();
+
+  // Load subscribers from the in-memory list (kept in sync by Stripe webhooks)
+  // Import getSubscribers from notify.js or read directly
+  const { getSubscribers } = require("./notify.js"); // or use the module-level variable
+  const subs = getSubscribers(); // { free: [...], pro: [...] }
+
+  const isPro  = subs.pro.some(s => s.email?.toLowerCase() === normalized);
+  const isFree = subs.free.some(s => s.email?.toLowerCase() === normalized);
+
+  if (isPro)  return res.json({ email: normalized, plan: "pro" });
+  if (isFree) return res.json({ email: normalized, plan: "free" });
+
+  // Not in either list — check if they submitted the free form (Formspree)
+  // For now, if they hit /signup/free but aren't in our list yet, 
+  // we give them free access (they can always be removed manually)
+  return res.json({ email: normalized, plan: "none" });
+});
+
 // ── Stripe webhook — auto-add/remove Pro subscribers ─────────────────────────
 // (See stripe.js for the full implementation)
 app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -240,6 +264,31 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
   } catch (e) {
     console.error("Stripe webhook error:", e.message);
     res.status(400).send(`Webhook Error: ${e.message}`);
+  }
+});
+app.get("/api/quote", async (req, res) => {
+  const { symbol } = req.query;
+  if (!symbol) return res.status(400).json({ error: "symbol required" });
+  try {
+    const quotes = await fetchQuotes([symbol]);
+    const quote = quotes[symbol];
+    if (!quote) return res.status(404).json({ error: `No quote for ${symbol}` });
+    res.json(quote);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Options chain — called when admin clicks Generate in SignalComposer
+app.get("/api/chain", async (req, res) => {
+  const { symbol, maxDte = 5 } = req.query;
+  if (!symbol) return res.status(400).json({ error: "symbol required" });
+  if (symbol.startsWith("/")) return res.json(null); // futures have no options chain
+  try {
+    const chain = await fetchOptionsChain(symbol, parseInt(maxDte));
+    res.json(chain);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

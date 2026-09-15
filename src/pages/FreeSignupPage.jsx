@@ -8,7 +8,9 @@ import { useState, useEffect, useRef } from "react";
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Your Discord invite link — replace with yours
-const DISCORD_INVITE = "https://discord.gg/your-invite-here";
+const DISCORD_INVITE     = "https://discord.gg/s7vHMnGfX";
+const FORMSPREE_ID       = import.meta.env.VITE_FORMSPREE_ID || "";
+const ADMIN_WEBHOOK      = import.meta.env.VITE_ADMIN_DISCORD || "";
 
 function useInView(ref) {
   const [visible, setVisible] = useState(false);
@@ -62,20 +64,40 @@ export default function FreeSignupPage({ onNavigate = () => {} }) {
     }
     setLoading(true);
 
-    // ── Save to your backend / email list ────────────────────────────────────
-    // Option 1: Send to a simple API route you build later
-    // Option 2: Use a free service like Formspree (paste your endpoint below)
-    // Option 3: Use ConvertKit / Mailchimp API
-    //
-    // For now this just simulates a submit. Replace with your real integration:
-    //
-    // await fetch("https://formspree.io/f/YOUR_FORM_ID", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ name: form.name, email: form.email, discord: form.discord, plan: "free" }),
-    // });
-
-    await new Promise(r => setTimeout(r, 900)); // simulate network
+    try {
+      await Promise.allSettled([
+        // Formspree — emails you every signup
+        FORMSPREE_ID && fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            discord: form.discord || "not provided",
+            plan: "free",
+            _subject: `New free signup: ${form.name}`,
+          }),
+        }),
+        // Discord admin notification
+        ADMIN_WEBHOOK && fetch(ADMIN_WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            embeds: [{
+              color: 0x4a8adf,
+              title: "🆕 New Free Signup",
+              fields: [
+                { name: "Name",    value: form.name,              inline: true },
+                { name: "Email",   value: form.email,             inline: true },
+                { name: "Discord", value: form.discord || "—",   inline: true },
+              ],
+              footer: { text: "AlertGods · Free Plan" },
+              timestamp: new Date().toISOString(),
+            }],
+          }),
+        }),
+      ]);
+    } catch {}
     setLoading(false);
     setSubmitted(true);
   }
@@ -144,7 +166,7 @@ export default function FreeSignupPage({ onNavigate = () => {} }) {
       {/* Nav */}
       <nav style={{ padding: "0 40px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #0a1828" }}>
         <button onClick={() => onNavigate("/")} style={{ background: "none", border: "none", cursor: "pointer" }}>
-          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ALERTGODS</span>
+          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ SIGNALOS</span>
         </button>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <span style={{ fontSize: 13, color: "#3a5a7a" }}>Already have an account?</span>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN;
 const SESSION_KEY = "alertgods_admin_auth";
 
 export function adminLogout() {
