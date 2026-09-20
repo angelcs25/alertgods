@@ -6,7 +6,7 @@
 // and asks Claude to decide: is there a tradeable setup or not?
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { getPhaseContext } from "./marketHours.js";
+import { getPhaseContext } from "./market_hours.js";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 

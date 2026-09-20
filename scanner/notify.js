@@ -21,6 +21,10 @@ export function setSubscribers(data) {
   subscribers = data;
 }
 
+export function getSubscribers() {
+  return subscribers;
+}
+
 export function addProSubscriber(phone, email) {
   if (!subscribers.pro.find(s => s.phone === phone)) {
     subscribers.pro.push({ phone, email, added_at: new Date().toISOString() });

@@ -13,8 +13,8 @@ import { config } from "dotenv";
 
 import { initSchwab, getAuthUrl, exchangeCode, fetchQuotes, fetchOptionsChain, isAuthorized } from "./schwab.js";
 import { analyzeWithClaude } from "./claude.js";
-import { dispatchSignal, dispatchSkip, setSubscribers } from "./notify.js";
-import { isMarketOpen, getMarketPhase, getScanInterval } from "./marketHours.js";
+import { dispatchSignal, dispatchSkip, setSubscribers, getSubscribers } from "./notify.js";
+import { isMarketOpen, getMarketPhase, getScanInterval } from "./market_hours.js";
 
 config();
 
@@ -237,8 +237,6 @@ app.post("/api/verify", (req, res) => {
   const normalized = email.toLowerCase().trim();
 
   // Load subscribers from the in-memory list (kept in sync by Stripe webhooks)
-  // Import getSubscribers from notify.js or read directly
-  const { getSubscribers } = require("./notify.js"); // or use the module-level variable
   const subs = getSubscribers(); // { free: [...], pro: [...] }
 
   const isPro  = subs.pro.some(s => s.email?.toLowerCase() === normalized);
