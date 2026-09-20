@@ -22,7 +22,7 @@ import Stripe from "stripe";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { addProSubscriber, removeProSubscriber } from "./notify.js";
+import { addProSubscriber, removeProSubscriber, getSubscribers } from "./notify.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SUBSCRIBERS_FILE = path.join(__dirname, "subscribers.json");
@@ -61,6 +61,7 @@ export async function handleStripeWebhook(body, sig) {
 
       if (email) {
         addProSubscriber(phone, email);
+        await saveSubscribers(getSubscribers());
         console.log(`  [Stripe] Pro activated: ${email}`);
 
         // Send welcome Discord notification to admin
@@ -96,6 +97,7 @@ export async function handleStripeWebhook(body, sig) {
 
       if (phone) {
         removeProSubscriber(phone);
+        await saveSubscribers(getSubscribers());
         console.log(`  [Stripe] Pro cancelled: ${email}`);
       }
       break;
@@ -108,11 +110,6 @@ export async function handleStripeWebhook(body, sig) {
       break;
     }
   }
-
-  // Save updated subscriber list to disk
-  try {
-    const { LESSONS: _ } = await import("./notify.js"); // eslint-disable-line
-  } catch { /* ignore */ }
 }
 
 // ─── Create a Stripe Checkout Session (alternative to Payment Link) ───────────
