@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 
+const SITE_TITLE = "Free AI Signals - Powered By Claude";
+const SITE_DESCRIPTION = "Free AI-powered options and futures trade signals delivered to your phone and Discord, with entry zones, targets, and strategy context.";
+
 const NAV_LINKS = ["About", "Learn to Trade", "Pricing"];
 
 const STATS = [
@@ -82,11 +85,11 @@ function useInView(ref) {
   return visible;
 }
 
-function AnimSection({ children, delay = 0 }) {
+function AnimSection({ children, delay = 0, className = "" }) {
   const ref = useRef(null);
   const visible = useInView(ref);
   return (
-    <div ref={ref} style={{
+    <div ref={ref} className={className} style={{
       opacity: visible ? 1 : 0,
       transform: visible ? "translateY(0)" : "translateY(28px)",
       transition: `opacity 0.7s ease ${delay}s, transform 0.7s ease ${delay}s`,
@@ -106,7 +109,8 @@ function DashboardPreview() {
     { ticker: "/ES", side: "SELL", price: "4902.25", conf: 84, strategy: "Volume Spike", tf: "1m" },
   ];
   return (
-    <div style={{
+    <div className="dash-scroll">
+    <div className="dash-inner" style={{
       background: "#080b0f",
       border: "1px solid #1a2a3a",
       borderRadius: 6,
@@ -160,6 +164,7 @@ function DashboardPreview() {
       {/* Bottom blur gradient */}
       <div style={{ height:32, background:"linear-gradient(to bottom, transparent, #080b0f)" }} />
     </div>
+    </div>
   );
 }
 
@@ -175,13 +180,49 @@ export default function LandingPage({ onNavigate = () => {} }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Browser tab title + description + mobile viewport (the real fix for search
+  // results is the same title/description in index.html — see notes)
+  useEffect(() => {
+    document.title = SITE_TITLE;
+    const setMeta = (attr, key, content) => {
+      let el = document.head.querySelector(`meta[${attr}="${key}"]`);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+    setMeta("name", "viewport", "width=device-width, initial-scale=1");
+    setMeta("name", "description", SITE_DESCRIPTION);
+    setMeta("property", "og:title", SITE_TITLE);
+    setMeta("property", "og:description", SITE_DESCRIPTION);
+  }, []);
+
+  const handleNav = (label) => {
+    const routes = {
+      "About": "/about",
+      // "Performance": "/performance",
+      "Learn to Trade": "/learn",
+      "Pricing": "scroll-pricing",
+    };
+    const r = routes[label];
+    setMenuOpen(false);
+    if (r === "scroll-pricing") {
+      const el = document.getElementById("pricing");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    } else {
+      onNavigate(r || "/");
+    }
+  };
+
   return (
     <div style={{
       fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
       background: "#050c18",
       color: "#c8d8e8",
       minHeight: "100vh",
-      overflowX: "hidden",
+      overflowX: "clip",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@700;800&display=swap');
@@ -306,10 +347,109 @@ export default function LandingPage({ onNavigate = () => {} }) {
           color: #e8f0f8;
           line-height: 1.1;
         }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
+
+        /* Swipeable dashboard preview (scrolls sideways when it doesn't fit) */
+        .dash-scroll {
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+          touch-action: pan-x pan-y;
+          scrollbar-width: none;
+        }
+        .dash-scroll::-webkit-scrollbar { display: none; }
+
+        .nav-burger {
+          display: none;
+          background: none;
+          border: 1px solid #1a3a5a;
+          color: #c8d8e8;
+          border-radius: 3px;
+          width: 36px;
+          height: 32px;
+          font-size: 16px;
+          line-height: 1;
+          cursor: pointer;
+        }
+        .nav-mobile-menu, .nav-menu-login { display: none; }
+
+        /* ── Tablet & mobile ── */
+        @media (max-width: 900px) {
+          .nav-bar { padding: 0 16px !important; }
+          .nav-links { display: none !important; }
+          .nav-burger { display: inline-flex; align-items: center; justify-content: center; }
+          .nav-mobile-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: rgba(5,12,24,0.98);
+            border-bottom: 1px solid #0f1e30;
+            padding: 8px 20px 16px;
+          }
+          .nav-mobile-menu .nav-link {
+            text-align: left;
+            padding: 14px 0;
+            font-size: 15px;
+            border-bottom: 1px solid #0a1525;
+          }
+
+          .hero-section { padding: 96px 20px 48px !important; min-height: auto !important; }
+          .two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
+          .pad-section { padding-left: 20px !important; padding-right: 20px !important; }
+          section.pad-section { padding-top: 64px !important; padding-bottom: 64px !important; }
+
+          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .stats-grid > div > div {
+            border-right: none !important;
+            border-bottom: 1px solid #0a1828;
+            padding: 22px 12px !important;
+          }
+
+          .dash-inner { min-width: 480px; }
+
+          .pricing-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            margin: 0 -20px;
+            padding: 4px 20px 16px;
+          }
+          .pricing-scroll::-webkit-scrollbar { display: none; }
+          .pricing-row { flex-wrap: nowrap !important; width: max-content; }
+          .pricing-card-wrap { flex: none; scroll-snap-align: start; }
+          .pricing-card-wrap .plan-card { width: 300px; }
+
+          .footer-row {
+            flex-direction: column !important;
+            gap: 16px !important;
+            text-align: center;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .feature-grid { grid-template-columns: 1fr !important; }
+        }
+
+        @media (max-width: 520px) {
+          .nav-actions .cta-ghost { display: none; }
+          .nav-menu-login { display: block; }
+          .nav-actions .cta-primary { padding: 8px 14px !important; }
+        }
       `}</style>
 
       {/* Navbar */}
-      <nav style={{
+      <nav className="nav-bar" style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         padding: "0 40px",
         height: 60,
@@ -322,32 +462,39 @@ export default function LandingPage({ onNavigate = () => {} }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ALERTGODS</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+        <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: 32 }}>
           {NAV_LINKS.map(l => (
-            <button key={l} className="nav-link" onClick={() => {const routes = { 
-              "About": "/about", 
-              // "Performance": "/performance",
-              "Learn to Trade": "/learn",
-              "Pricing": "scroll-pricing",
-            };
-      const r = routes[l]; if (r === "scroll-pricing") { const el = document.getElementById("pricing"); if (el) el.scrollIntoView({ behavior: "smooth" }); } else onNavigate(r || "/");
-    }}
-  >{l}</button>))}
+            <button key={l} className="nav-link" onClick={() => handleNav(l)}>{l}</button>
+          ))}
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="nav-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <button className="cta-ghost" style={{ padding: "8px 18px", fontSize: 12 }} onClick={() => onNavigate("/login")}>Dashboard</button>
           <button className="cta-primary" style={{ padding: "8px 18px", fontSize: 12 }} onClick={() => onNavigate("/signup/free")}>Join Now</button>
+          <button
+            className="nav-burger"
+            aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(o => !o)}
+          >{menuOpen ? "✕" : "☰"}</button>
         </div>
+        {menuOpen && (
+          <div className="nav-mobile-menu">
+            {NAV_LINKS.map(l => (
+              <button key={l} className="nav-link" onClick={() => handleNav(l)}>{l}</button>
+            ))}
+            <button className="nav-link nav-menu-login" onClick={() => { setMenuOpen(false); onNavigate("/login"); }}>Dashboard</button>
+          </div>
+        )}
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", padding: "100px 40px 60px", overflow: "hidden" }}>
+      <section className="hero-section" style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", padding: "100px 40px 60px", overflow: "hidden" }}>
         <div className="grid-bg" />
         <div className="glow-orb" style={{ width: 500, height: 500, background: "rgba(0,100,200,0.12)", top: -100, right: -100 }} />
         <div className="glow-orb" style={{ width: 300, height: 300, background: "rgba(0,200,120,0.07)", bottom: 100, left: -50 }} />
 
         <div style={{ position: "relative", zIndex: 1, maxWidth: 1100, margin: "0 auto", width: "100%" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60, alignItems: "center" }}>
+          <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60, alignItems: "center" }}>
 
             {/* Left: copy */}
             <div>
@@ -403,7 +550,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
 
       {/* ── STATS STRIP ── */}
       <section style={{ borderTop: "1px solid #0a1828", borderBottom: "1px solid #0a1828", background: "#060d18" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
+        <div className="stats-grid" style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
           {STATS.map((s, i) => (
             <AnimSection key={i} delay={i * 0.1}>
               <div style={{ padding: "32px 24px", borderRight: i < 3 ? "1px solid #0a1828" : "none", textAlign: "center" }}>
@@ -417,9 +564,9 @@ export default function LandingPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── WHAT IS ALERTGODS ── */}
-      <section style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
+      <section className="pad-section" style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
         <AnimSection>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+          <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
             <div>
               <div className="section-label">ABOUT THE SERVICE</div>
               <h2 className="section-title" style={{ marginBottom: 20 }}>
@@ -442,7 +589,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
             </div>
 
             {/* Feature cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="feature-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {FEATURES.map((f, i) => (
                 <AnimSection key={i} delay={i * 0.1}>
                   <div className="feature-card">
@@ -504,7 +651,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
       </section> */}
 
       {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
+      <section id="pricing" className="pad-section" style={{ padding: "100px 40px", maxWidth: 1100, margin: "0 auto" }}>
         <AnimSection>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <div className="section-label">SIMPLE PRICING</div>
@@ -512,9 +659,10 @@ export default function LandingPage({ onNavigate = () => {} }) {
             <p style={{ fontSize: 14, color: "#3a5a7a", marginTop: 12 }}>Cancel anytime. No hidden fees.</p>
           </div>
         </AnimSection>
-        <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
+        <div className="pricing-scroll">
+        <div className="pricing-row" style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
           {PLANS.map((p, i) => (
-            <AnimSection key={i} delay={i * 0.1}>
+            <AnimSection key={i} delay={i * 0.1} className="pricing-card-wrap">
               <div className={`plan-card${p.featured ? " featured" : ""}`} style={{ position: "relative" }}>
                 {p.featured && (
                   <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "#00c97a", color: "#030f08", fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", padding: "3px 12px", borderRadius: 2 }}>
@@ -550,13 +698,14 @@ export default function LandingPage({ onNavigate = () => {} }) {
             </AnimSection>
           ))}
         </div>
+        </div>
       </section>
 
       {/* ── LEARN TO TRADE TEASER ── */}
-      <section style={{ padding: "80px 40px", background: "#060d18", borderTop: "1px solid #0a1828" }}>
+      <section className="pad-section" style={{ padding: "80px 40px", background: "#060d18", borderTop: "1px solid #0a1828" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <AnimSection>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60, alignItems: "center" }}>
+            <div className="two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60, alignItems: "center" }}>
               <div>
                 <div className="section-label">EDUCATION</div>
                 <h2 className="section-title" style={{ marginBottom: 20 }}>Learn to Trade Options & Futures</h2>
@@ -578,8 +727,8 @@ export default function LandingPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ padding: "40px", borderTop: "1px solid #0a1828", background: "#050c18" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <footer className="pad-section" style={{ padding: "40px", borderTop: "1px solid #0a1828", background: "#050c18" }}>
+        <div className="footer-row" style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#1a3a5a", fontSize: 12, letterSpacing: "0.1em" }}>◈ ALERTGODS</span>
           <span style={{ fontSize: 11, color: "#1a2a3a" }}>Trading involves risk. Past performance is not indicative of future results. Not Financial Advice</span>
           <div style={{ display: "flex", gap: 20 }}>
