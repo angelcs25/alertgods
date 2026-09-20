@@ -403,6 +403,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
 
           .hero-section { padding: 96px 20px 48px !important; min-height: auto !important; }
           .two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
+          .hero-title { font-size: clamp(30px, 7vw, 48px) !important; line-height: 1.08 !important; }
           .pad-section { padding-left: 20px !important; padding-right: 20px !important; }
           section.pad-section { padding-top: 64px !important; padding-bottom: 64px !important; }
 
@@ -445,6 +446,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
           .nav-actions .cta-ghost { display: none; }
           .nav-menu-login { display: block; }
           .nav-actions .cta-primary { padding: 8px 14px !important; }
+          .hero-title { font-size: clamp(26px, 8.5vw, 34px) !important; line-height: 1.1 !important; letter-spacing: -0.01em !important; }
         }
       `}</style>
 
@@ -503,7 +505,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#4a8a6a", letterSpacing: "0.12em" }}>LIVE SIGNALS ACTIVE</span>
               </div>
 
-              <h1 style={{
+              <h1 className="hero-title" style={{
                 fontFamily: "'Syne', sans-serif",
                 fontSize: "clamp(36px, 5vw, 64px)",
                 fontWeight: 800,
@@ -517,7 +519,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
               </h1>
 
               <p style={{ fontSize: 16, color: "#5a7a9a", lineHeight: 1.75, marginBottom: 32, maxWidth: 440 }}>
-                High-conviction options and futures trade alerts sent directly to your phone and Discord — with entry zones, targets, and full strategy context. No noise. No lag.
+                High-conviction options and futures trade alerts, powered by Claude AI, sent directly to your phone and Discord — with entry zones, targets, and full strategy context. No noise. No lag.
               </p>
 
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
