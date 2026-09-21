@@ -25,7 +25,9 @@ import { fileURLToPath } from "url";
 import { addProSubscriber, removeProSubscriber, getSubscribers } from "./notify.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SUBSCRIBERS_FILE = path.join(__dirname, "subscribers.json");
+// Must match scanner.js's DATA_DIR exactly — both read/write this same file.
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || __dirname;
+const SUBSCRIBERS_FILE = path.join(DATA_DIR, "subscribers.json");
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)

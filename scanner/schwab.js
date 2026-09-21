@@ -5,11 +5,10 @@
 // SETUP:
 //   1. Go to developer.schwab.com → Create App
 //   2. Callback URL: https://<your-railway-app>.up.railway.app/callback
-//      (use your real Railway domain here — Schwab must redirect back to a
-//      publicly reachable URL, not localhost, once this is deployed)
+//      (must be a publicly reachable URL once deployed — not localhost)
 //   3. Wait for "Ready for use" status (2-5 days)
-//   4. Add these to your Railway service's Variables (and to scanner/.env for
-//      local dev):
+//   4. Add these as Variables in your Railway service (and to scanner/.env
+//      for local dev):
 //        SCHWAB_APP_KEY=your_key
 //        SCHWAB_APP_SECRET=your_secret
 //        SCHWAB_REDIRECT_URI=https://<your-railway-app>.up.railway.app/callback

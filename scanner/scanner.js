@@ -19,8 +19,12 @@ import { isMarketOpen, getMarketPhase, getScanInterval } from "./market_hours.js
 config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SIGNALS_FILE    = path.join(__dirname, "signals.json");
-const SUBSCRIBERS_FILE = path.join(__dirname, "subscribers.json");
+// Same reasoning as schwab.js: Railway's container filesystem resets on every
+// redeploy, so signals/subscribers written to __dirname would vanish on each
+// push. DATA_DIR points at a mounted Volume instead, when one is attached.
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || __dirname;
+const SIGNALS_FILE    = path.join(DATA_DIR, "signals.json");
+const SUBSCRIBERS_FILE = path.join(DATA_DIR, "subscribers.json");
 const PORT = process.env.PORT || 3001;
 
 // Tickers to scan — equities + futures
