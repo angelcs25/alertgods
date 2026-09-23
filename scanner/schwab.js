@@ -19,7 +19,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TOKEN_FILE = path.join(__dirname, ".schwab_tokens.json");
+// Railway's container filesystem is wiped on every redeploy — DATA_DIR points
+// at a mounted Volume (persists across redeploys) when one is attached.
+// Falls back to __dirname (fine for local dev, but NOT persistent on Railway).
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || __dirname;
+const TOKEN_FILE = path.join(DATA_DIR, ".schwab_tokens.json");
 
 const APP_KEY      = process.env.SCHWAB_APP_KEY;
 const APP_SECRET   = process.env.SCHWAB_APP_SECRET;
@@ -209,6 +213,38 @@ export async function fetchOptionsChain(symbol, maxDte = 5) {
     puts:  chainOpts.filter(o => o.option_type === "put").slice(0, 8),
     allExpirations: dtes.map(d => ({ dte: d, date: options.find(o => o.dte === d)?.expiration })),
   };
+}
+
+// ─── Front-month futures symbol ────────────────────────────────────────────────
+// Schwab's quotes endpoint needs the specific contract (e.g. /ESZ25), not the
+// bare continuous root (/ES) — querying the bare root silently returns no quote
+// data at all (no error, just missing from the response), which is why /ES and
+// /NQ were never showing up as either signals OR skips in Discord. This computes
+// the current front-month quarterly contract symbol so it's always correct
+// without needing a manual code update every quarter.
+const QUARTERLY_MONTH_CODES = { 3: "H", 6: "M", 9: "U", 12: "Z" };
+
+function getThirdFriday(year, month) {
+  // month is 1-12
+  const d = new Date(year, month - 1, 1);
+  const firstFridayOffset = (5 - d.getDay() + 7) % 7;
+  d.setDate(1 + firstFridayOffset + 14); // 1st Friday + 2 weeks = 3rd Friday
+  return d;
+}
+
+// e.g. getFrontMonthFuturesSymbol("ES") -> "/ESZ25"
+export function getFrontMonthFuturesSymbol(root) {
+  const now = new Date();
+  const year = now.getFullYear();
+  for (const month of [3, 6, 9, 12]) {
+    const rollDate = getThirdFriday(year, month);
+    rollDate.setDate(rollDate.getDate() - 7); // roll a week early — liquidity/data thins before expiry
+    if (now < rollDate) {
+      return `/${root}${QUARTERLY_MONTH_CODES[month]}${String(year).slice(-2)}`;
+    }
+  }
+  // Past December's roll date — front month is March of next year
+  return `/${root}H${String(year + 1).slice(-2)}`;
 }
 
 // Initialize — load saved tokens on startup

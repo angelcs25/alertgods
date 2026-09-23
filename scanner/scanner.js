@@ -11,7 +11,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
 
-import { initSchwab, getAuthUrl, exchangeCode, fetchQuotes, fetchOptionsChain, isAuthorized } from "./schwab.js";
+import { initSchwab, getAuthUrl, exchangeCode, fetchQuotes, fetchOptionsChain, isAuthorized, getFrontMonthFuturesSymbol } from "./schwab.js";
 import { analyzeWithClaude } from "./claude.js";
 import { dispatchSignal, dispatchSkip, setSubscribers, getSubscribers, addFreeSubscriber, saveSubscribers } from "./notify.js";
 import { isMarketOpen, getMarketPhase, getScanInterval } from "./market_hours.js";
@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3001;
 
 // Tickers to scan — equities + futures
 const EQUITY_TICKERS  = ["SPY","QQQ","IWM","AAPL","TSLA","NVDA","MSFT","AMZN","META","AMD","AVGO"];
-const FUTURES_TICKERS = ["/ES", "/NQ"]; // PRO ONLY — Schwab supports these natively
+const FUTURES_ROOTS = ["ES", "NQ"]; // PRO ONLY — resolved to the live front-month contract each scan
 const SKIP_IN_MID     = ["TSLA","AMD","AVGO"]; // too erratic mid-day for 0DTE
 
 let signals    = [];
@@ -37,7 +37,24 @@ let scanLog    = [];
 let isScanning = false;
 let nextScanAt = null;
 let scanTimer  = null;
-let stats      = { totalScans: 0, signalsGenerated: 0, signalsSkipped: 0, lastScan: null };
+let stats      = { totalScans: 0, signalsGenerated: 0, signalsSkipped: 0, signalsThrottled: 0, lastScan: null };
+
+// ─── Repeat-signal cooldown ─────────────────────────────────────────────────
+// Without this, a trending ticker clears Claude's bar on every single scan
+// cycle (every 5min during OPEN/POWER_HOUR) and re-signals the *same* move
+// over and over — e.g. QQQ BUY PUT at 9:37, 9:44, and 9:51 for the same
+// sell-off. This suppresses a same-direction repeat on a ticker within the
+// cooldown window; a genuine reversal (side or type flips) still fires.
+// Tune with SIGNAL_COOLDOWN_MINUTES in Railway — no code change needed.
+const SIGNAL_COOLDOWN_MS = (parseInt(process.env.SIGNAL_COOLDOWN_MINUTES) || 30) * 60 * 1000;
+let lastSignalByTicker = {}; // { SPY: { side: "BUY", type: "PUT", at: <ms epoch> } }
+
+function isRepeatSignal(ticker, side, type) {
+  const last = lastSignalByTicker[ticker];
+  if (!last) return false;
+  const sameDirection = last.side === side && last.type === type;
+  return sameDirection && (Date.now() - last.at) < SIGNAL_COOLDOWN_MS;
+}
 
 // ─── Load persisted data ──────────────────────────────────────────────────────
 
@@ -80,7 +97,8 @@ async function runScan() {
     ? EQUITY_TICKERS.filter(t => !SKIP_IN_MID.includes(t))
     : EQUITY_TICKERS;
 
-  const allTickers = [...equities, ...FUTURES_TICKERS];
+  const futuresTickers = FUTURES_ROOTS.map(getFrontMonthFuturesSymbol);
+  const allTickers = [...equities, ...futuresTickers];
 
   try {
     // 1. Batch fetch all quotes
@@ -92,6 +110,10 @@ async function runScan() {
       const quote = quotes[ticker];
       if (!quote?.price) {
         log.results.push({ ticker, result: "no quote" });
+        // This used to fail completely silently — no console line, no Discord,
+        // nothing — which is exactly how /ES and /NQ went unnoticed for so long.
+        // Surface it to admin so a bad/expired symbol is never invisible again.
+        await dispatchSkip(ticker, "No quote returned from Schwab — check the symbol is correct/still active").catch(() => {});
         continue;
       }
 
@@ -110,10 +132,20 @@ async function runScan() {
           log.results.push({ ticker, result: "no setup" });
           stats.signalsSkipped++;
           await dispatchSkip(ticker, result.reason);
+        } else if (isRepeatSignal(ticker, result.side, result.type)) {
+          // Same ticker, same direction, still inside the cooldown window —
+          // this is the current move continuing, not a new setup. Log it to
+          // admin only so you keep visibility without spamming subscribers.
+          const minutesAgo = Math.round((Date.now() - lastSignalByTicker[ticker].at) / 60000);
+          console.log(`     ↳ Throttled: ${ticker} ${result.side} ${result.type} repeat (last one ${minutesAgo}m ago)`);
+          log.results.push({ ticker, result: "throttled (repeat)" });
+          stats.signalsThrottled++;
+          await dispatchSkip(ticker, `Repeat ${result.side} ${result.type} setup — already signaled ${minutesAgo}m ago, cooldown active`);
         } else {
           console.log(`     ↳ SIGNAL: ${result.side} ${result.type} ${result.expiry} @ ${result.confidence}% ✅`);
           log.results.push({ ticker, result: `${result.side} ${result.type} ${result.expiry} ${result.confidence}%` });
           stats.signalsGenerated++;
+          lastSignalByTicker[ticker] = { side: result.side, type: result.type, at: Date.now() };
 
           const signal = {
             ...result,
