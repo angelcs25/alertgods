@@ -13,7 +13,7 @@ import { config } from "dotenv";
 
 import { initSchwab, getAuthUrl, exchangeCode, fetchQuotes, fetchOptionsChain, isAuthorized, getFrontMonthFuturesSymbol } from "./schwab.js";
 import { analyzeWithClaude } from "./claude.js";
-import { dispatchSignal, dispatchSkip, setSubscribers, getSubscribers, addFreeSubscriber, saveSubscribers } from "./notify.js";
+import { dispatchSignal, dispatchSkip, setSubscribers, getSubscribers, addFreeSubscriber, addProSubscriber, saveSubscribers } from "./notify.js";
 import { isMarketOpen, getMarketPhase, getScanInterval } from "./market_hours.js";
 
 config();
@@ -47,7 +47,7 @@ let stats      = { totalScans: 0, signalsGenerated: 0, signalsSkipped: 0, signal
 // cooldown window; a genuine reversal (side or type flips) still fires.
 // Tune with SIGNAL_COOLDOWN_MINUTES in Railway — no code change needed.
 const SIGNAL_COOLDOWN_MS = (parseInt(process.env.SIGNAL_COOLDOWN_MINUTES) || 30) * 60 * 1000;
-let lastSignalByTicker = {}; // { SPY: { side: "BUY", type: "PUT", at: <ms epoch> } }
+let lastSignalByTicker = {}; // { SPY: { side: "BUY", type: "PUT", at: <ms epoch>, pausedUntil?: <ms epoch> } }
 
 function isRepeatSignal(ticker, side, type) {
   const last = lastSignalByTicker[ticker];
@@ -283,6 +283,31 @@ app.post("/api/signup-free", async (req, res) => {
   } catch (e) {
     console.error("  [Signup-Free] Failed:", e.message);
     res.status(500).json({ error: "Could not save signup — try again" });
+  }
+});
+
+// Admin-only: grant Pro access (Discord + SMS + dashboard) without going
+// through Stripe checkout — for yourself, testers, or anyone you want to comp.
+// Protect it by setting ADMIN_KEY in Railway; the route refuses every request
+// until that env var exists, so it's inert until you turn it on. Call once with:
+//   curl -X POST https://<your-railway-app>.up.railway.app/api/admin/add-pro \
+//     -H "Content-Type: application/json" -H "x-admin-key: <your ADMIN_KEY>" \
+//     -d '{"phone":"+15551234567","email":"you@example.com"}'
+// (phone in E.164 format — country code + number, no spaces/dashes — since
+// that's what Twilio requires for SMS delivery.)
+app.post("/api/admin/add-pro", async (req, res) => {
+  if (!process.env.ADMIN_KEY || req.headers["x-admin-key"] !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  const { phone, email } = req.body || {};
+  if (!email?.trim()) return res.status(400).json({ error: "email is required" });
+  try {
+    addProSubscriber(phone?.trim() || "", email.trim());
+    await saveSubscribers();
+    res.json({ ok: true, message: `${email} added as Pro (Discord${phone ? " + SMS" : ""} + dashboard)` });
+  } catch (e) {
+    console.error("  [Admin] add-pro failed:", e.message);
+    res.status(500).json({ error: "Could not add subscriber" });
   }
 });
 

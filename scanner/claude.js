@@ -133,7 +133,8 @@ If there IS a high-quality setup:
   "tf": "1m" | "5m" | "15m" | "30m",
   "confidence": number (integer, phase minimum to 95),
   "isFutures": boolean,
-  "notes": string (2-3 sentences: what the data shows RIGHT NOW, why this specific entry, the key level to watch)
+  "notes": string (2-3 sentences: what the data shows RIGHT NOW, why this specific entry, the key level to watch),
+  "smsLine": string (ONE short clause, under 100 characters, no filler words — just the single key level or reason a trader needs to act in the next few seconds, e.g. "Break below $743.46 LOD opens $740-741, stop above $745.50". This is what gets texted, so it must stand alone without the rest of "notes".)
 }
 
 If there is NO clear setup:

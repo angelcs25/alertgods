@@ -173,12 +173,20 @@ async function sendAdminDiscord(signal, skipReason = null) {
 
 function buildSMSMessage(signal) {
   const dir = signal.side === "BUY" ? "🟢" : "🔴";
+  // SMS is futures-only now (see dispatchSignal below) — these go to traders
+  // who want the level and get out, not the full writeup, so this uses the
+  // short, purpose-built smsLine Claude generates alongside the full Discord
+  // "notes". Falls back to the old first-sentence trim for any older signal
+  // object saved before smsLine existed.
+  const reasoning = signal.smsLine || signal.notes?.split(".")[0] || "";
   const msg =
     `${dir} ALERTGODS: ${signal.ticker} ${signal.side} ${signal.type} ${signal.expiry}\n` +
     `Strike: ${signal.strike}\n` +
-    `Entry: $${signal.price} | Stop: $${signal.stop} | Target: $${signal.target}\n` +
+    `Entry: $${signal.price}\n` +
+    `Stop: $${signal.stop}\n` +
+    `Target: $${signal.target}\n` +
     `${signal.strategy} | ${signal.confidence}% conf\n` +
-    `${signal.notes?.split(".")[0] || ""}\n` +
+    `${reasoning}\n` +
     `Reply STOP to unsubscribe.`;
   return msg;
 }
@@ -225,19 +233,23 @@ export async function dispatchSignal(signal) {
   await sendAdminDiscord(signal).catch(e => console.error("Admin Discord failed:", e.message));
 
   if (isFutures) {
-    // FUTURES — PRO ONLY: Pro Discord + SMS
-    console.log(`  [Notify] Futures signal — Pro only delivery`);
+    // FUTURES — PRO ONLY: Pro Discord + SMS. SMS is reserved for futures on
+    // purpose — prop-firm/futures traders need the alert the instant it
+    // fires, so they get the fast text with just the level and get-out info
+    // (see buildSMSMessage/smsLine). Options traders get the full reasoning
+    // on Discord instead of a text.
+    console.log(`  [Notify] Futures signal — Pro only delivery (Discord + SMS)`);
     await Promise.allSettled([
       sendProDiscord(signal),
       sendSMSToProSubscribers(signal),
     ]);
   } else {
-    // OPTIONS — Free Discord + Pro Discord + Pro SMS
-    console.log(`  [Notify] Options signal — Free + Pro delivery`);
+    // OPTIONS — Free Discord + Pro Discord. No SMS for options anymore —
+    // the full writeup lives on Discord and doesn't cost a text per signal.
+    console.log(`  [Notify] Options signal — Free + Pro Discord delivery`);
     await Promise.allSettled([
       sendFreeDiscord(signal),
       sendProDiscord(signal),
-      sendSMSToProSubscribers(signal),
     ]);
   }
 }
@@ -245,4 +257,44 @@ export async function dispatchSignal(signal) {
 // Dispatch for skip events (admin only)
 export async function dispatchSkip(ticker, reason) {
   await sendAdminDiscord({ ticker }, reason).catch(() => {});
+}
+
+// ─── Trade resolution (win/loss) follow-up ─────────────────────────────────────
+// Posted by scanner.js when a pending signal's target or stop actually gets hit.
+// Discord-only, no SMS — this is a transparency/trust follow-up, not a new
+// alert, and keeping it out of SMS avoids adding to text volume.
+
+function buildResolutionEmbed(signal) {
+  const won = signal.status === "won";
+  return {
+    color: won ? 0x00c97a : 0xe05050,
+    title: `${won ? "✅ WIN" : "🛑 STOPPED OUT"} — ${signal.ticker} ${signal.side} ${signal.type}`,
+    description: `Entry $${signal.price} → ${won ? "target" : "stop"} hit at $${signal.resolvedPrice}. Pausing new ${signal.ticker} signals for a bit before scanning it again — trade the moves you already have, don't chase the next one.`,
+    fields: [
+      { name: "Entry", value: `$${signal.price}`, inline: true },
+      { name: won ? "Target Hit" : "Stop Hit", value: `$${signal.resolvedPrice}`, inline: true },
+      { name: "Strategy", value: signal.strategy || "—", inline: true },
+    ],
+    footer: { text: "AlertGods Signal Engine · Trade at your own risk" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export async function dispatchResolution(signal) {
+  const isFutures = signal.isFutures || signal.ticker?.startsWith("/");
+  const embed = buildResolutionEmbed(signal);
+  const webhooks = isFutures
+    ? [process.env.DISCORD_WEBHOOK_PRO]
+    : [process.env.DISCORD_WEBHOOK_FREE, process.env.DISCORD_WEBHOOK_PRO];
+
+  await Promise.allSettled(
+    webhooks.filter(Boolean).map(webhook =>
+      fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ embeds: [embed] }),
+      })
+    )
+  );
+  console.log(`  [Discord] Resolution posted for ${signal.ticker}: ${signal.status}`);
 }
