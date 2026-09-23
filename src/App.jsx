@@ -10,6 +10,9 @@ import ProSignupPage        from "./pages/ProSignupPage";
 import LoginPage            from "./pages/LoginPage";
 import SubscriberDashboard  from "./pages/SubscriberDashboard";
 import useAuth              from "./services/useAuth";
+import TermsPage            from "./pages/TermsPage";
+import PrivacyPage          from "./pages/PrivacyPage";
+import ContactPage          from "./pages/ContactPage";
 
 function getPage() {
   const hash = window.location.hash.replace("#", "").trim();
@@ -73,6 +76,12 @@ export default function App() {
       return <FreeSignupPage onNavigate={navigate} />;
     case "/signup/pro":
       return <ProSignupPage onNavigate={navigate} />;
+    case "/terms":
+      return <TermsPage onNavigate={navigate} />;
+    case "/privacy":
+      return <PrivacyPage onNavigate={navigate} />;
+    case "/contact":
+      return <ContactPage onNavigate={navigate} />;
     case "/signup/success":
       return (
         <div style={{ fontFamily: "'DM Sans',sans-serif", background: "#050c18", color: "#c8d8e8", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 40 }}>

@@ -47,7 +47,7 @@ const PRO_FEATURES = [
 
 export default function ProSignupPage({ onNavigate = () => {} }) {
   const [step, setStep] = useState("form"); // "form" | "payment" | "success"
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", smsConsent: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -75,6 +75,10 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
     }
     if (form.phone && !validatePhone(form.phone)) {
       setError("Please enter a valid phone number (10+ digits).");
+      return;
+    }
+    if (form.phone && !form.smsConsent) {
+      setError("Please check the SMS consent box to receive text alerts, or leave the phone field blank.");
       return;
     }
     setLoading(true);
@@ -203,7 +207,7 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
       {/* Nav */}
       <nav style={{ padding: "0 40px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #0a1828" }}>
         <button onClick={() => onNavigate("/")} style={{ background: "none", border: "none", cursor: "pointer" }}>
-          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ SIGNALOS</span>
+          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ ALERTGODS</span>
         </button>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <span style={{ fontSize: 13, color: "#3a5a7a" }}>Want free first?</span>
@@ -292,6 +296,22 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
                     </label>
                     <input className="fi" type="tel" placeholder="+1 (305) 555-0100" value={form.phone} onChange={e => setField("phone", e.target.value)} />
                     <div style={{ fontSize: 11, color: "#2a3a4a", marginTop: 6 }}>Used only for signal delivery. Standard SMS rates apply.</div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      id="smsConsent"
+                      checked={form.smsConsent}
+                      onChange={e => setForm(f => ({ ...f, smsConsent: e.target.checked }))}
+                      style={{ marginTop: 3, flexShrink: 0, accentColor: "#00c97a" }}
+                    />
+                    <label htmlFor="smsConsent" style={{ fontSize: 12, color: "#4a6a8a", lineHeight: 1.6 }}>
+                      I agree to receive recurring automated trade alert texts from AlertGods at the number above.
+                      Msg &amp; data rates may apply. Reply STOP to cancel at any time. See our{" "}
+                      <a href="#/terms" style={{ color: "#4a8adf" }}>Terms</a> and{" "}
+                      <a href="#/privacy" style={{ color: "#4a8adf" }}>Privacy Policy</a>.
+                    </label>
                   </div>
 
                   {error && (

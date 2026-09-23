@@ -5,15 +5,25 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import twilio from "twilio";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
   ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
   : null;
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Same DATA_DIR reasoning as scanner.js/schwab.js — points at the mounted
+// Railway Volume so this survives redeploys, when one is attached.
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || __dirname;
+const SUBSCRIBERS_FILE = path.join(DATA_DIR, "subscribers.json");
+
 // ─── Subscriber list ──────────────────────────────────────────────────────────
-// In production these come from your database (Stripe webhook adds/removes them)
-// For now, load from a local JSON file you maintain manually
-// Format: { free: [{phone, discord_id}], pro: [{phone, discord_id}] }
+// Source of truth on disk is subscribers.json (mounted volume). Pro subscribers
+// are added/removed by the Stripe webhook (see stripe.js). Free subscribers are
+// added here directly by the /api/signup-free route in scanner.js.
+// Format: { free: [{email, name, discord, added_at}], pro: [{phone, email, added_at}] }
 
 let subscribers = { free: [], pro: [] };
 
@@ -25,6 +35,12 @@ export function getSubscribers() {
   return subscribers;
 }
 
+// Shared persistence — anything that mutates `subscribers` should call this
+// afterward so the change survives a restart/redeploy.
+export async function saveSubscribers() {
+  await fs.writeFile(SUBSCRIBERS_FILE, JSON.stringify(subscribers, null, 2));
+}
+
 export function addProSubscriber(phone, email) {
   if (!subscribers.pro.find(s => s.phone === phone)) {
     subscribers.pro.push({ phone, email, added_at: new Date().toISOString() });
@@ -34,6 +50,31 @@ export function addProSubscriber(phone, email) {
 
 export function removeProSubscriber(phone) {
   subscribers.pro = subscribers.pro.filter(s => s.phone !== phone);
+}
+
+// ─── Free subscribers ─────────────────────────────────────────────────────────
+// Called by POST /api/signup-free (scanner.js) when someone submits the free
+// signup form. Dedupes by email so a repeat submission just updates the record
+// instead of creating a duplicate. Persists immediately so this data is never
+// only sitting in Formspree/Discord — it lives on your own server.
+
+export function addFreeSubscriber(email, name, discord) {
+  const normalized = email.toLowerCase().trim();
+  const existing = subscribers.free.find(s => s.email?.toLowerCase() === normalized);
+  if (existing) {
+    existing.name = name || existing.name;
+    existing.discord = discord || existing.discord;
+    existing.updated_at = new Date().toISOString();
+    console.log(`  [Notify] Updated Free subscriber: ${normalized}`);
+  } else {
+    subscribers.free.push({
+      email: normalized,
+      name: name || "",
+      discord: discord || "",
+      added_at: new Date().toISOString(),
+    });
+    console.log(`  [Notify] Added Free subscriber: ${normalized}`);
+  }
 }
 
 // ─── Discord delivery ─────────────────────────────────────────────────────────

@@ -11,6 +11,10 @@ import { useState, useEffect, useRef } from "react";
 const DISCORD_INVITE     = "https://discord.gg/s7vHMnGfX";
 const FORMSPREE_ID       = import.meta.env.VITE_FORMSPREE_ID || "";
 const ADMIN_WEBHOOK      = import.meta.env.VITE_ADMIN_DISCORD || "";
+// Base URL of the scanner backend (Railway), e.g. https://your-scanner.railway.app
+// NOTE: if your dashboard already calls the API elsewhere (e.g. for /api/signals),
+// reuse that exact same env var name here instead of adding a second one.
+const API_BASE           = import.meta.env.VITE_API_URL || "";
 
 function useInView(ref) {
   const [visible, setVisible] = useState(false);
@@ -64,8 +68,22 @@ export default function FreeSignupPage({ onNavigate = () => {} }) {
     }
     setLoading(true);
 
+    // Whether this actually persisted on your own server (vs. just Formspree/Discord)
+    let saved = !API_BASE; // if API_BASE isn't configured, don't block/alarm on it
+
     try {
-      await Promise.allSettled([
+      const results = await Promise.allSettled([
+        // Your own backend — this is the record that actually matters: it's what
+        // /api/verify checks and what makes this person a real "free" subscriber.
+        API_BASE && fetch(`${API_BASE}/api/signup-free`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            discord: form.discord || "",
+          }),
+        }),
         // Formspree — emails you every signup
         FORMSPREE_ID && fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
           method: "POST",
@@ -97,8 +115,22 @@ export default function FreeSignupPage({ onNavigate = () => {} }) {
           }),
         }),
       ]);
+
+      if (API_BASE) {
+        const backendResult = results[0];
+        saved = backendResult.status === "fulfilled" && backendResult.value && backendResult.value.ok;
+      }
     } catch {}
+
     setLoading(false);
+
+    if (!saved) {
+      // Don't silently show success if the one call that actually matters failed —
+      // Formspree/Discord notifications are nice-to-have, this one is the real record.
+      setError("Something went wrong saving your signup. Please try again, or join Discord directly and email us.");
+      return;
+    }
+
     setSubmitted(true);
   }
 
@@ -166,7 +198,7 @@ export default function FreeSignupPage({ onNavigate = () => {} }) {
       {/* Nav */}
       <nav style={{ padding: "0 40px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #0a1828" }}>
         <button onClick={() => onNavigate("/")} style={{ background: "none", border: "none", cursor: "pointer" }}>
-          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ SIGNALOS</span>
+          <span style={{ fontFamily: mono, color: "#00c97a", fontSize: 14, fontWeight: 600, letterSpacing: "0.1em" }}>◈ ALERTGODS</span>
         </button>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <span style={{ fontSize: 13, color: "#3a5a7a" }}>Already have an account?</span>
@@ -266,7 +298,8 @@ export default function FreeSignupPage({ onNavigate = () => {} }) {
                   </button>
 
                   <p style={{ fontSize: 11, color: "#1e2a38", textAlign: "center", lineHeight: 1.6 }}>
-                    By signing up you agree to our Terms and Privacy Policy.<br />No credit card required. Cancel anytime.
+                    By signing up you agree to our <a href="#/terms" style={{ color: "#3a5a7a" }}>Terms</a> and{" "}
+                    <a href="#/privacy" style={{ color: "#3a5a7a" }}>Privacy Policy</a>.<br />No credit card required. Cancel anytime.
                   </p>
                 </form>
               </div>

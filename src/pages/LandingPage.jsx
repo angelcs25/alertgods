@@ -734,8 +734,20 @@ export default function LandingPage({ onNavigate = () => {} }) {
           <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#1a3a5a", fontSize: 12, letterSpacing: "0.1em" }}>◈ ALERTGODS</span>
           <span style={{ fontSize: 11, color: "#1a2a3a" }}>Trading involves risk. Past performance is not indicative of future results. Not Financial Advice</span>
           <div style={{ display: "flex", gap: 20 }}>
-            {["Terms","Privacy","Discord","Contact"].map(l => (
-              <span key={l} style={{ fontSize: 11, color: "#2a4a6a", cursor: "pointer" }}>{l}</span>
+            {[
+              { label: "Terms",   href: "#/terms" },
+              { label: "Privacy", href: "#/privacy" },
+              { label: "Discord", href: "https://discord.gg/s7vHMnGfX", external: true },
+              { label: "Contact", href: "#/contact" },
+            ].map(l => (
+              <a
+                key={l.label}
+                href={l.href}
+                {...(l.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                style={{ fontSize: 11, color: "#2a4a6a", cursor: "pointer", textDecoration: "none" }}
+              >
+                {l.label}
+              </a>
             ))}
           </div>
         </div>

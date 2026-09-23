@@ -13,7 +13,7 @@ import { config } from "dotenv";
 
 import { initSchwab, getAuthUrl, exchangeCode, fetchQuotes, fetchOptionsChain, isAuthorized } from "./schwab.js";
 import { analyzeWithClaude } from "./claude.js";
-import { dispatchSignal, dispatchSkip, setSubscribers, getSubscribers } from "./notify.js";
+import { dispatchSignal, dispatchSkip, setSubscribers, getSubscribers, addFreeSubscriber, saveSubscribers } from "./notify.js";
 import { isMarketOpen, getMarketPhase, getScanInterval } from "./market_hours.js";
 
 config();
@@ -233,6 +233,27 @@ app.post("/api/scan", async (req, res) => {
   runScan();
 });
 
+// Free signup — called from FreeSignupPage.jsx on submit. This is what actually
+// persists free subscribers to subscribers.json; previously they only ever
+// existed in Formspree/Discord, so /api/verify below could never find them.
+app.post("/api/signup-free", async (req, res) => {
+  const { name, email, discord } = req.body || {};
+  if (!name?.trim() || !email?.trim()) {
+    return res.status(400).json({ error: "Name and email are required" });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return res.status(400).json({ error: "Enter a valid email address" });
+  }
+  try {
+    addFreeSubscriber(email, name, discord);
+    await saveSubscribers();
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("  [Signup-Free] Failed:", e.message);
+    res.status(500).json({ error: "Could not save signup — try again" });
+  }
+});
+
 // This lets the frontend verify a subscriber's email and get their plan
 app.post("/api/verify", (req, res) => {
   const { email } = req.body;
@@ -249,9 +270,9 @@ app.post("/api/verify", (req, res) => {
   if (isPro)  return res.json({ email: normalized, plan: "pro" });
   if (isFree) return res.json({ email: normalized, plan: "free" });
 
-  // Not in either list — check if they submitted the free form (Formspree)
-  // For now, if they hit /signup/free but aren't in our list yet, 
-  // we give them free access (they can always be removed manually)
+  // Not in either list — genuinely unknown email. Free signups are persisted
+  // immediately by POST /api/signup-free, so a legit free subscriber should
+  // already be in subs.free by the time this is called.
   return res.json({ email: normalized, plan: "none" });
 });
 
