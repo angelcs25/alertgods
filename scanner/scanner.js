@@ -27,10 +27,14 @@ const SIGNALS_FILE    = path.join(DATA_DIR, "signals.json");
 const SUBSCRIBERS_FILE = path.join(DATA_DIR, "subscribers.json");
 const PORT = process.env.PORT || 3001;
 
-// Tickers to scan — equities + futures
-const EQUITY_TICKERS  = ["SPY","QQQ","IWM","AAPL","TSLA","NVDA","MSFT","AMZN","META","AMD","AVGO"];
+// Tickers to scan — equities + futures. Trimmed down to a lean core list for
+// now (SPY/QQQ/AAPL/NVDA/AMZN + futures) to keep Claude API cost low — fewer
+// tickers scanned per cycle means fewer paid analysis calls, with no change
+// to how the engine actually decides on a signal. Add names back in anytime
+// by editing this array — no other code needs to change.
+const EQUITY_TICKERS  = ["SPY","QQQ","AAPL","NVDA","AMD","AVGO"];
 const FUTURES_ROOTS = ["ES", "NQ"]; // PRO ONLY — resolved to the live front-month contract each scan
-const SKIP_IN_MID     = ["TSLA","AMD","AVGO"]; // too erratic mid-day for 0DTE
+const SKIP_IN_MID     = ["AMD","AVGO","AAPL"]; // too erratic mid-day for 0DTE
 
 let signals    = [];
 let scanLog    = [];
