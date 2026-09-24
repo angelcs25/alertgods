@@ -27,14 +27,10 @@ const SIGNALS_FILE    = path.join(DATA_DIR, "signals.json");
 const SUBSCRIBERS_FILE = path.join(DATA_DIR, "subscribers.json");
 const PORT = process.env.PORT || 3001;
 
-// Tickers to scan — equities + futures. Trimmed down to a lean core list for
-// now (SPY/QQQ/AAPL/NVDA/AMZN + futures) to keep Claude API cost low — fewer
-// tickers scanned per cycle means fewer paid analysis calls, with no change
-// to how the engine actually decides on a signal. Add names back in anytime
-// by editing this array — no other code needs to change.
+// Tickers to scan — equities + futures.
 const EQUITY_TICKERS  = ["SPY","QQQ","AAPL","NVDA","AMD","AVGO"];
 const FUTURES_ROOTS = ["ES", "NQ"]; // PRO ONLY — resolved to the live front-month contract each scan
-const SKIP_IN_MID     = ["AMD","AVGO","AAPL"]; // too erratic mid-day for 0DTE
+const SKIP_IN_MID     = ["AAPL","AMD","AVGO"]; // too erratic mid-day for 0DTE
 
 let signals    = [];
 let scanLog    = [];
@@ -51,13 +47,54 @@ let stats      = { totalScans: 0, signalsGenerated: 0, signalsSkipped: 0, signal
 // cooldown window; a genuine reversal (side or type flips) still fires.
 // Tune with SIGNAL_COOLDOWN_MINUTES in Railway — no code change needed.
 const SIGNAL_COOLDOWN_MS = (parseInt(process.env.SIGNAL_COOLDOWN_MINUTES) || 30) * 60 * 1000;
-let lastSignalByTicker = {}; // { SPY: { side: "BUY", type: "PUT", at: <ms epoch>, pausedUntil?: <ms epoch> } }
+let lastSignalByTicker = {}; // { SPY: { side: "BUY", type: "PUT", at: <ms epoch> } }
 
 function isRepeatSignal(ticker, side, type) {
   const last = lastSignalByTicker[ticker];
   if (!last) return false;
   const sameDirection = last.side === side && last.type === type;
   return sameDirection && (Date.now() - last.at) < SIGNAL_COOLDOWN_MS;
+}
+
+// ─── Manual pause ────────────────────────────────────────────────────────────
+// A hand toggle for "I've got what I wanted today, stop spending on this" —
+// independent of the daily cap below. Flips scanning off/on without touching
+// Railway at all: the server keeps running (dashboard, signups, Stripe
+// webhook all still work), it just stops calling Schwab/Claude until you
+// resume it. Resets to false on every redeploy/restart, so a normal push
+// never accidentally leaves it paused. Toggle it with:
+//   POST /api/admin/pause  -H "x-admin-key: <ADMIN_KEY>"
+//   POST /api/admin/resume -H "x-admin-key: <ADMIN_KEY>"
+let scanningPaused = false;
+
+// ─── Daily signal cap + quality floor ───────────────────────────────────────
+// The cooldown above only blocks the SAME ticker/direction combo — it doesn't
+// cap the total number of signals across every ticker and every scan cycle,
+// which is how a busy day turns into 15-20+ alerts. This adds two levers:
+// MIN_DISPATCH_CONFIDENCE holds back anything that cleared Claude's own (much
+// lower) per-phase minimum but isn't actually a top-tier setup, and
+// MAX_DAILY_SIGNALS stops dispatching to subscribers once that many have gone
+// out today — and once the cap is hit, runScan() below skips analysis
+// entirely for the rest of the day, which also stops paying for Claude calls
+// on tickers whose signals would just get held back anyway. Held-back signals
+// still log to the admin channel so you keep visibility. Resets automatically
+// at the next ET calendar day. Tune both with MAX_DAILY_SIGNALS /
+// MIN_DISPATCH_CONFIDENCE in Railway — no code change needed.
+const MAX_DAILY_SIGNALS = parseInt(process.env.MAX_DAILY_SIGNALS) || 10;
+const MIN_DISPATCH_CONFIDENCE = parseInt(process.env.MIN_DISPATCH_CONFIDENCE) || 75;
+let dailySignalCount = 0;
+let dailySignalDate = null;
+
+function getETDateString() {
+  return new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
+}
+
+function checkDailyReset() {
+  const today = getETDateString();
+  if (dailySignalDate !== today) {
+    dailySignalDate = today;
+    dailySignalCount = 0;
+  }
 }
 
 // ─── Load persisted data ──────────────────────────────────────────────────────
@@ -87,6 +124,12 @@ async function runScan() {
   if (isScanning) { console.log("  Scan already running — skipping"); return; }
   if (!isAuthorized()) { console.warn("  [Schwab] Not authorized — skipping scan. Visit /auth"); scheduleNextScan(); return; }
 
+  if (scanningPaused) {
+    console.log("  ⏸ Scanning is manually paused — skipping (POST /api/admin/resume to turn back on)");
+    scheduleNextScan();
+    return;
+  }
+
   isScanning = true;
   const phase = getMarketPhase();
   const start = new Date();
@@ -95,6 +138,16 @@ async function runScan() {
   stats.totalScans++;
   stats.lastScan = start;
   const log = { ts: start.toISOString(), phase, results: [] };
+
+  checkDailyReset();
+  if (dailySignalCount >= MAX_DAILY_SIGNALS) {
+    console.log(`  💤 Daily cap of ${MAX_DAILY_SIGNALS} signals already reached — skipping analysis for the rest of today (saves the Claude API cost too). Resumes automatically at the next ET trading day.`);
+    log.results.push({ ticker: "*", result: `daily cap reached (${dailySignalCount}/${MAX_DAILY_SIGNALS}) — scan skipped` });
+    scanLog = [log, ...scanLog].slice(0, 50);
+    isScanning = false;
+    scheduleNextScan();
+    return;
+  }
 
   // Determine which tickers to scan this phase
   let equities = phase === "MID"
@@ -164,9 +217,20 @@ async function runScan() {
 
           signals = [signal, ...signals].slice(0, 300);
           await saveSignals();
-          await dispatchSignal(signal);
-          signal.delivered = true;
-          await saveSignals();
+
+          if (result.confidence < MIN_DISPATCH_CONFIDENCE) {
+            console.log(`     ↳ Held: ${result.confidence}% is below the ${MIN_DISPATCH_CONFIDENCE}% dispatch bar`);
+            await dispatchSkip(ticker, `${result.confidence}% confidence is below the ${MIN_DISPATCH_CONFIDENCE}% bar for alerting subscribers — held back to keep quality high`);
+          } else if (dailySignalCount >= MAX_DAILY_SIGNALS) {
+            console.log(`     ↳ Held: daily cap of ${MAX_DAILY_SIGNALS} signals already reached`);
+            await dispatchSkip(ticker, `Daily cap of ${MAX_DAILY_SIGNALS} signals already reached — this ${result.confidence}% ${result.side} ${result.type} setup was held back from subscribers for today`);
+          } else {
+            dailySignalCount++;
+            await dispatchSignal(signal);
+            signal.delivered = true;
+            await saveSignals();
+            console.log(`     ↳ Sent to subscribers (${dailySignalCount}/${MAX_DAILY_SIGNALS} today)`);
+          }
         }
 
         await sleep(1200); // Rate limit buffer between Claude calls
@@ -250,11 +314,14 @@ app.get("/api/signals", (req, res) => {
 app.get("/api/status", (req, res) => {
   res.json({
     isScanning,
+    scanningPaused,
     isMarketOpen: isMarketOpen(),
     marketPhase: getMarketPhase(),
     nextScanAt,
     scanInterval: getScanInterval(getMarketPhase()),
     schwabAuthorized: isAuthorized(),
+    dailySignalCount,
+    maxDailySignals: MAX_DAILY_SIGNALS,
     stats,
     lastLog: scanLog[0] || null,
   });
@@ -313,6 +380,29 @@ app.post("/api/admin/add-pro", async (req, res) => {
     console.error("  [Admin] add-pro failed:", e.message);
     res.status(500).json({ error: "Could not add subscriber" });
   }
+});
+
+// Admin-only: manually pause/resume scanning — for "I've got what I wanted
+// today, stop spending on this" without touching Railway at all. Same
+// ADMIN_KEY as add-pro above. Paused state is in-memory only, so it resets to
+// running on every redeploy/restart — a normal push never leaves you stuck
+// paused by accident.
+app.post("/api/admin/pause", (req, res) => {
+  if (!process.env.ADMIN_KEY || req.headers["x-admin-key"] !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  scanningPaused = true;
+  console.log("  ⏸ Scanning paused via /api/admin/pause");
+  res.json({ ok: true, scanningPaused });
+});
+
+app.post("/api/admin/resume", (req, res) => {
+  if (!process.env.ADMIN_KEY || req.headers["x-admin-key"] !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  scanningPaused = false;
+  console.log("  ▶ Scanning resumed via /api/admin/resume");
+  res.json({ ok: true, scanningPaused });
 });
 
 // This lets the frontend verify a subscriber's email and get their plan
