@@ -4,11 +4,11 @@
 //
 // IMPORTANT: This is a starting template, not legal advice. Have an actual
 // attorney review this before relying on it. It's written to honestly reflect
-// what the codebase actually does today (Formspree, Discord webhooks, Stripe,
-// Twilio) — if you add/remove a third-party tool, update this page to match.
+// what the codebase actually does today (Formspree, Discord webhooks, Stripe)
+// — if you add/remove a third-party tool, update this page to match.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const LAST_UPDATED = "September 22, 2026";
+const LAST_UPDATED = "September 29, 2026";
 const CONTACT_EMAIL = "support@alertgods.com"; // ← update once your inbox is live
 const COMPANY_NAME = "AlertGods";
 
@@ -46,14 +46,14 @@ export default function PrivacyPage({ onNavigate = () => {} }) {
         <p style={{ fontSize: 13, color: "#3a5a7a", marginBottom: 40 }}>Last updated: {LAST_UPDATED}</p>
 
         <Section title="1. What we collect">
-          When you sign up for the Free or Pro plan, we collect your name, email address, and (Pro only) phone number and Discord
-          username. We don't collect payment card details ourselves — those go directly to Stripe, our payment processor, and never
-          touch our servers.
+          When you sign up for the Free or Pro plan, we collect your name, email address, and (if provided) Discord username. We
+          don't collect payment card details ourselves — those go directly to Stripe, our payment processor, and never touch our
+          servers.
         </Section>
 
         <Section title="2. How we use it">
           <ul style={{ margin: 0, paddingLeft: 20 }}>
-            <li>Email and phone — to deliver signal alerts and account/billing notices</li>
+            <li>Email — to deliver signal alerts and account/billing notices</li>
             <li>Discord username — to help identify you in our Discord server, if provided</li>
             <li>Name and email — to notify our team internally of new signups so we can support you</li>
           </ul>
@@ -63,7 +63,6 @@ export default function PrivacyPage({ onNavigate = () => {} }) {
           We don't sell your data. It's shared only with the services that make {COMPANY_NAME} work:
           <ul style={{ margin: "10px 0 0", paddingLeft: 20 }}>
             <li><strong>Stripe</strong> — processes Pro subscription payments and stores your billing details under Stripe's own privacy policy</li>
-            <li><strong>Twilio</strong> — delivers SMS alerts to Pro subscribers who opt in</li>
             <li><strong>Discord</strong> — hosts our community server; your Discord activity is governed by Discord's own privacy policy</li>
             <li><strong>Formspree</strong> — receives a copy of signup form submissions so our team gets notified</li>
           </ul>
@@ -80,9 +79,8 @@ export default function PrivacyPage({ onNavigate = () => {} }) {
         </Section>
 
         <Section title="6. Your choices">
-          You can opt out of SMS at any time by replying STOP to any text. You can leave our Discord server at any time. To update,
-          export, or delete the personal data we hold about you, email {CONTACT_EMAIL} and we'll handle it directly — there's no
-          self-serve account portal yet.
+          You can leave our Discord server at any time. To update, export, or delete the personal data we hold about you, email{" "}
+          {CONTACT_EMAIL} and we'll handle it directly — there's no self-serve account portal yet.
         </Section>
 
         <Section title="7. Children's privacy">

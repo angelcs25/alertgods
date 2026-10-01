@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 const SITE_TITLE = "Free AI Signals - Powered By Claude";
-const SITE_DESCRIPTION = "Free AI-powered options and futures trade signals delivered to your phone and Discord, with entry zones, targets, and strategy context.";
+const SITE_DESCRIPTION = "Free AI-powered options and futures trade signals delivered to Discord, with entry zones, targets, and strategy context.";
 
 const NAV_LINKS = ["About", "Learn to Trade", "Pricing"];
 
@@ -9,7 +9,7 @@ const STATS = [
   { value: "74.2%", label: "Win Rate", sub: "Last 90 days" },
   { value: "3.8x", label: "Avg Risk/Reward", sub: "Per signal" },
   { value: "1,240+", label: "Signals Sent", sub: "This year" },
-  { value: "94%", label: "Delivery Rate", sub: "SMS & Discord" },
+  { value: "94%", label: "Delivery Rate", sub: "Discord" },
 ];
 
 const RECENT_TRADES = [
@@ -34,8 +34,8 @@ const FEATURES = [
   },
   {
     icon: "△",
-    title: "Multi-Channel Delivery",
-    desc: "Signals land on your phone via SMS and your Discord server simultaneously — never miss an entry.",
+    title: "Instant Discord Delivery",
+    desc: "Signals post to your Discord server the moment they fire — never miss an entry.",
   },
   {
     icon: "◈",
@@ -61,7 +61,7 @@ const PLANS = [
     color: "#0a3a5a",
     accent: "#00c97a",
     featured: true,
-    features: ["Options + Futures signals", "SMS + Discord", "1-5 signals/day", "Live dashboard access", "Strategy breakdown"],
+    features: ["Options + Futures signals", "Instant Discord delivery", "1-5 signals/day", "Live dashboard access", "Strategy breakdown"],
     cta: "Get Started",
   },
   // {
@@ -519,7 +519,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
               </h1>
 
               <p style={{ fontSize: 16, color: "#5a7a9a", lineHeight: 1.75, marginBottom: 32, maxWidth: 440 }}>
-                High-conviction options and futures trade alerts, powered by Claude AI, sent directly to your phone and Discord — with entry zones, targets, and full strategy context. No noise. No lag.
+                High-conviction options and futures trade alerts, powered by Claude AI, sent directly to Discord — with entry zones, targets, and full strategy context. No noise. No lag.
               </p>
 
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
@@ -581,7 +581,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
                 Every signal includes the instrument, direction, entry zone, stop level, target, strategy rationale, and a confidence score. You get the full picture in seconds — not after the move already happened.
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {["Options (0DTE to weekly) on SPY, QQQ, NVDA, AAPL & more","Futures scalps on /ES and /NQ during active sessions","SMS + Discord delivery — under 2 seconds from signal to your phone"].map(t => (
+                {["Options (0DTE to weekly) on SPY, QQQ, NVDA, AAPL & more","Futures scalps on /ES and /NQ during active sessions","Instant Discord delivery — signal posts the moment it fires"].map(t => (
                   <div key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                     <span style={{ color: "#00c97a", fontSize: 12, marginTop: 2, flexShrink: 0 }}>✓</span>
                     <span style={{ fontSize: 13, color: "#7a9aba" }}>{t}</span>

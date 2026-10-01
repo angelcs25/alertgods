@@ -39,7 +39,7 @@ function AnimSection({ children, delay = 0 }) {
 const PRO_FEATURES = [
   { icon: "◎", label: "Options signals", detail: "1–5 per day on high-probability setups" },
   { icon: "⬡", label: "Futures signals", detail: "/ES and /NQ scalp setups during key sessions" },
-  { icon: "◈", label: "SMS + Discord delivery", detail: "Alerts arrive in under 2 seconds" },
+  { icon: "◈", label: "Instant Discord delivery", detail: "Alerts post the moment a signal fires" },
   { icon: "△", label: "Live signal dashboard", detail: "Real-time feed with full signal history" },
   { icon: "◇", label: "Strategy breakdown", detail: "Entry, stop, target, and rationale on every signal" },
   { icon: "⊞", label: "Full education library", detail: "All modules including Advanced" },
@@ -47,7 +47,7 @@ const PRO_FEATURES = [
 
 export default function ProSignupPage({ onNavigate = () => {} }) {
   const [step, setStep] = useState("form"); // "form" | "payment" | "success"
-  const [form, setForm] = useState({ name: "", email: "", phone: "", smsConsent: false });
+  const [form, setForm] = useState({ name: "", email: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -58,11 +58,6 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
     setError("");
   }
 
-  function validatePhone(phone) {
-    const digits = phone.replace(/\D/g, "");
-    return digits.length >= 10;
-  }
-
   async function handleFormSubmit(e) {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim()) {
@@ -71,14 +66,6 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
     }
     if (!form.email.includes("@")) {
       setError("Please enter a valid email address.");
-      return;
-    }
-    if (form.phone && !validatePhone(form.phone)) {
-      setError("Please enter a valid phone number (10+ digits).");
-      return;
-    }
-    if (form.phone && !form.smsConsent) {
-      setError("Please check the SMS consent box to receive text alerts, or leave the phone field blank.");
       return;
     }
     setLoading(true);
@@ -93,8 +80,6 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
           body: JSON.stringify({
             name: form.name,
             email: form.email,
-            phone: form.phone || "not provided",
-            sms_consent: form.smsConsent || false,
             plan: "pro",
             _subject: `New Pro signup: ${form.name}`,
           }),
@@ -108,10 +93,8 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
               color: 0x00c97a,
               title: "💰 New Pro Signup — $36/mo",
               fields: [
-                { name: "Name",        value: form.name,                          inline: true },
-                { name: "Email",       value: form.email,                         inline: true },
-                { name: "Phone",       value: form.phone || "—",                  inline: true },
-                { name: "SMS Consent", value: form.smsConsent ? "✅ Yes" : "❌ No", inline: true },
+                { name: "Name",  value: form.name,  inline: true },
+                { name: "Email", value: form.email, inline: true },
               ],
               description: "Redirecting to Stripe...",
               footer: { text: "AlertGods · Pro" },
@@ -228,7 +211,7 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
                 $36<span style={{ fontSize: 18, color: "#5a7a9a", fontWeight: 400 }}>/month</span>
               </h1>
               <p style={{ fontSize: 15, color: "#5a7a9a", lineHeight: 1.8, marginBottom: 32, marginTop: 12 }}>
-                Full access — options and futures signals delivered by SMS and Discord, live dashboard, and the complete education library.
+                Full access — options and futures signals delivered instantly on Discord, live dashboard, and the complete education library.
               </p>
 
               {/* Features */}
@@ -290,30 +273,6 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
                     <label style={{ display: "block", fontSize: 12, color: "#4a6a8a", marginBottom: 6 }}>Email address</label>
                     <input className="fi" type="email" placeholder="you@email.com" value={form.email} onChange={e => setField("email", e.target.value)} />
                   </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: 12, color: "#4a6a8a", marginBottom: 6 }}>
-                      Phone number <span style={{ color: "#2a3a4a" }}>(for SMS alerts)</span>
-                    </label>
-                    <input className="fi" type="tel" placeholder="+1 (305) 555-0100" value={form.phone} onChange={e => setField("phone", e.target.value)} />
-                    <div style={{ fontSize: 11, color: "#2a3a4a", marginTop: 6 }}>Used only for signal delivery. Standard SMS rates apply.</div>
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                    <input
-                      type="checkbox"
-                      id="smsConsent"
-                      checked={form.smsConsent}
-                      onChange={e => setForm(f => ({ ...f, smsConsent: e.target.checked }))}
-                      style={{ marginTop: 3, flexShrink: 0, accentColor: "#00c97a" }}
-                    />
-                    <label htmlFor="smsConsent" style={{ fontSize: 12, color: "#4a6a8a", lineHeight: 1.6 }}>
-                      I agree to receive recurring automated trade alert texts from AlertGods at the number above.
-                      Msg &amp; data rates may apply. Reply STOP to cancel at any time. See our{" "}
-                      <a href="#/terms" style={{ color: "#4a8adf" }}>Terms</a> and{" "}
-                      <a href="#/privacy" style={{ color: "#4a8adf" }}>Privacy Policy</a>.
-                    </label>
-                  </div>
-
                   {error && (
                     <div style={{ fontSize: 12, color: "#e05050", background: "#200808", border: "1px solid #300a0a", borderRadius: 3, padding: "10px 14px" }}>
                       {error}
@@ -370,7 +329,6 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
                       body: JSON.stringify({
                         email: form.email,
                         name: form.name,
-                        phone: form.phone,
                         priceId: "price_1ABC..." // your Stripe price ID
                       })
                     });
@@ -406,7 +364,7 @@ export default function ProSignupPage({ onNavigate = () => {} }) {
                   Welcome to Pro, {form.name.split(" ")[0]}
                 </div>
                 <p style={{ fontSize: 14, color: "#5a7a9a", lineHeight: 1.8, marginBottom: 28 }}>
-                  Your subscription is active. Join the Discord to get access to the Pro channels, and your SMS alerts will be set up within 24 hours.
+                  Your subscription is active. Join the Discord to get access to the Pro channels — you're all set.
                 </p>
                 <a
                   href={DISCORD_INVITE}

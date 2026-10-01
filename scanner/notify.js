@@ -1,17 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ALERT DELIVERY — notify.js
-// Handles Discord webhooks and Twilio SMS
-// Futures signals and SMS are PRO ONLY
+// Handles Discord webhooks
+// Futures signals are PRO ONLY
 // ─────────────────────────────────────────────────────────────────────────────
 
-import twilio from "twilio";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Same DATA_DIR reasoning as scanner.js/schwab.js — points at the mounted
@@ -169,60 +164,6 @@ async function sendAdminDiscord(signal, skipReason = null) {
   });
 }
 
-// ─── Twilio SMS (PRO ONLY) ────────────────────────────────────────────────────
-
-function buildSMSMessage(signal) {
-  const dir = signal.side === "BUY" ? "🟢" : "🔴";
-  // SMS is futures-only now (see dispatchSignal below) — these go to traders
-  // who want the level and get out, not the full writeup, so this uses the
-  // short, purpose-built smsLine Claude generates alongside the full Discord
-  // "notes". Falls back to the old first-sentence trim for any older signal
-  // object saved before smsLine existed.
-  const reasoning = signal.smsLine || signal.notes?.split(".")[0] || "";
-  const msg =
-    `${dir} ALERTGODS: ${signal.ticker} ${signal.side} ${signal.type} ${signal.expiry}\n` +
-    `Strike: ${signal.strike}\n` +
-    `Entry: $${signal.price}\n` +
-    `Stop: $${signal.stop}\n` +
-    `Target: $${signal.target}\n` +
-    `${signal.strategy} | ${signal.confidence}% conf\n` +
-    `${reasoning}\n` +
-    `Reply STOP to unsubscribe.`;
-  return msg;
-}
-
-async function sendSMSToNumber(toNumber, message) {
-  if (!twilioClient) {
-    console.warn("  [SMS] Twilio not configured — skipping");
-    return;
-  }
-  try {
-    await twilioClient.messages.create({
-      body: message,
-      from: process.env.TWILIO_FROM_NUMBER,
-      to: toNumber,
-    });
-    console.log(`  [SMS] Sent to ${toNumber.slice(0, 6)}...`);
-  } catch (e) {
-    console.error(`  [SMS] Failed to ${toNumber.slice(0, 6)}:`, e.message);
-  }
-}
-
-async function sendSMSToProSubscribers(signal) {
-  if (subscribers.pro.length === 0) {
-    console.log("  [SMS] No Pro subscribers");
-    return;
-  }
-  const message = buildSMSMessage(signal);
-  const results = await Promise.allSettled(
-    subscribers.pro
-      .filter(s => s.phone)
-      .map(s => sendSMSToNumber(s.phone, message))
-  );
-  const sent = results.filter(r => r.status === "fulfilled").length;
-  console.log(`  [SMS] Delivered to ${sent}/${subscribers.pro.length} Pro subscribers`);
-}
-
 // ─── Main dispatch function ───────────────────────────────────────────────────
 // This is what scanner.js calls for every generated signal
 
@@ -233,15 +174,12 @@ export async function dispatchSignal(signal) {
   await sendAdminDiscord(signal).catch(e => console.error("Admin Discord failed:", e.message));
 
   if (isFutures) {
-    // FUTURES — PRO ONLY: Pro Discord + SMS. SMS is reserved for futures on
-    // purpose — prop-firm/futures traders need the alert the instant it
-    // fires, so they get the fast text with just the level and get-out info
-    // (see buildSMSMessage/smsLine). Options traders get the full reasoning
-    // on Discord instead of a text.
-    console.log(`  [Notify] Futures signal — Pro only delivery (Discord + SMS)`);
+    // FUTURES — PRO ONLY: Pro Discord. SMS delivery was removed (Twilio
+    // restricts stock/trade-alert content), so futures signals are
+    // Discord-only for now.
+    console.log(`  [Notify] Futures signal — Pro only delivery (Discord)`);
     await Promise.allSettled([
       sendProDiscord(signal),
-      sendSMSToProSubscribers(signal),
     ]);
   } else {
     // OPTIONS — Free Discord + Pro Discord. No SMS for options anymore —

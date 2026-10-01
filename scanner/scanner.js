@@ -357,15 +357,13 @@ app.post("/api/signup-free", async (req, res) => {
   }
 });
 
-// Admin-only: grant Pro access (Discord + SMS + dashboard) without going
-// through Stripe checkout — for yourself, testers, or anyone you want to comp.
+// Admin-only: grant Pro access (Discord + dashboard) without going through
+// Stripe checkout — for yourself, testers, or anyone you want to comp.
 // Protect it by setting ADMIN_KEY in Railway; the route refuses every request
 // until that env var exists, so it's inert until you turn it on. Call once with:
 //   curl -X POST https://<your-railway-app>.up.railway.app/api/admin/add-pro \
 //     -H "Content-Type: application/json" -H "x-admin-key: <your ADMIN_KEY>" \
-//     -d '{"phone":"+15551234567","email":"you@example.com"}'
-// (phone in E.164 format — country code + number, no spaces/dashes — since
-// that's what Twilio requires for SMS delivery.)
+//     -d '{"email":"you@example.com"}'
 app.post("/api/admin/add-pro", async (req, res) => {
   if (!process.env.ADMIN_KEY || req.headers["x-admin-key"] !== process.env.ADMIN_KEY) {
     return res.status(403).json({ error: "Forbidden" });
@@ -375,7 +373,7 @@ app.post("/api/admin/add-pro", async (req, res) => {
   try {
     addProSubscriber(phone?.trim() || "", email.trim());
     await saveSubscribers();
-    res.json({ ok: true, message: `${email} added as Pro (Discord${phone ? " + SMS" : ""} + dashboard)` });
+    res.json({ ok: true, message: `${email} added as Pro (Discord + dashboard)` });
   } catch (e) {
     console.error("  [Admin] add-pro failed:", e.message);
     res.status(500).json({ error: "Could not add subscriber" });
@@ -478,7 +476,6 @@ async function start() {
     console.log(`  Auth: http://localhost:${PORT}/auth  ← visit this to connect Schwab`);
     console.log(`  Phase: ${getMarketPhase()}`);
     if (!process.env.ANTHROPIC_API_KEY) console.error("  ✗ ANTHROPIC_API_KEY missing");
-    if (!process.env.TWILIO_ACCOUNT_SID) console.warn("  ⚠ Twilio not configured — SMS disabled");
     if (!process.env.DISCORD_WEBHOOK_FREE) console.warn("  ⚠ DISCORD_WEBHOOK_FREE not set");
     if (!process.env.DISCORD_WEBHOOK_PRO) console.warn("  ⚠ DISCORD_WEBHOOK_PRO not set");
     console.log();
