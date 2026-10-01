@@ -353,15 +353,31 @@ export default function LandingPage({ onNavigate = () => {} }) {
           50% { opacity: 0.35; }
         }
 
-        /* Swipeable dashboard preview (scrolls sideways when it doesn't fit) */
+        /* Swipeable dashboard preview (scrolls sideways when it doesn't fit).
+           touch-action: pan-x (not pan-x pan-y) so a horizontal swipe that
+           starts on this element is treated unambiguously as a side-scroll
+           instead of sometimes being captured by the page's vertical scroll. */
         .dash-scroll {
           overflow-x: auto;
           overflow-y: hidden;
           -webkit-overflow-scrolling: touch;
-          touch-action: pan-x pan-y;
+          touch-action: pan-x;
           scrollbar-width: none;
         }
         .dash-scroll::-webkit-scrollbar { display: none; }
+
+        /* Hidden on desktop (nothing to scroll there) — shown on mobile,
+           where .dash-inner below is forced wider than the viewport. */
+        .dash-hint {
+          display: none;
+          text-align: center;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: #3a6a8a;
+          letter-spacing: 0.08em;
+          margin-bottom: 8px;
+          animation: pulse 2.2s infinite;
+        }
 
         .nav-burger {
           display: none;
@@ -415,6 +431,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
           }
 
           .dash-inner { min-width: 480px; }
+          .dash-hint { display: block !important; }
 
           .pricing-scroll {
             overflow-x: auto;
@@ -446,7 +463,16 @@ export default function LandingPage({ onNavigate = () => {} }) {
           .nav-actions .cta-ghost { display: none; }
           .nav-menu-login { display: block; }
           .nav-actions .cta-primary { padding: 8px 14px !important; }
-          .hero-title { font-size: clamp(26px, 8.5vw, 34px) !important; line-height: 1.1 !important; letter-spacing: -0.01em !important; }
+          .hero-title { font-size: clamp(24px, 8vw, 32px) !important; line-height: 1.15 !important; letter-spacing: -0.01em !important; }
+          .hero-stats { gap: 16px !important; }
+        }
+
+        /* Smaller/older phones (e.g. iPhone SE, 375px and under) — the clamp
+           above still measures too wide for "Futures Signals" at this size. */
+        @media (max-width: 380px) {
+          .hero-title { font-size: clamp(21px, 7.5vw, 27px) !important; }
+          .hero-stats { gap: 10px !important; }
+          .hero-stats > div { font-size: 10px !important; }
         }
       `}</style>
 
@@ -512,6 +538,9 @@ export default function LandingPage({ onNavigate = () => {} }) {
                 color: "#e8f0f8",
                 lineHeight: 1.05,
                 marginBottom: 20,
+                overflowWrap: "break-word",
+                wordBreak: "break-word",
+                maxWidth: "100%",
               }}>
                 Options &<br />
                 Futures Signals<br />
@@ -528,7 +557,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
                 <button className="cta-primary" onClick={() => onNavigate("/dashboard")}>Join Now</button>
               </div>
 
-              <div style={{ display: "flex", gap: 28 }}>
+              <div className="hero-stats" style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
                 {[["74.2%","Win rate"],["3.8x","Avg R/R"],["1,240+","Signals sent"]].map(([v,l]) => (
                   <div key={l}>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 600, color: "#c8d8e8" }}>{v}</div>
@@ -541,6 +570,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
             {/* Right: dashboard preview */}
             <div style={{ position: "relative" }}>
               <div style={{ position: "absolute", inset: -20, background: "radial-gradient(ellipse at center, rgba(0,80,160,0.15) 0%, transparent 70%)", borderRadius: 20, pointerEvents: "none" }} />
+              <div className="dash-hint">⟷ Swipe to see the full table</div>
               <DashboardPreview />
               <div style={{ position: "absolute", bottom: -12, left: "50%", transform: "translateX(-50%)", fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "#2a4a6a", letterSpacing: "0.15em", whiteSpace: "nowrap" }}>
                 ↑ LIVE SUBSCRIBER DASHBOARD
