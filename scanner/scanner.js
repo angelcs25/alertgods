@@ -219,11 +219,12 @@ async function runScan() {
           await saveSignals();
 
           if (result.confidence < MIN_DISPATCH_CONFIDENCE) {
+            // Held back for quality — logged to the console only now, not
+            // to the admin Discord channel, since these happen often enough
+            // to be noise rather than something worth a notification for.
             console.log(`     ↳ Held: ${result.confidence}% is below the ${MIN_DISPATCH_CONFIDENCE}% dispatch bar`);
-            await dispatchSkip(ticker, `${result.confidence}% confidence is below the ${MIN_DISPATCH_CONFIDENCE}% bar for alerting subscribers — held back to keep quality high`);
           } else if (dailySignalCount >= MAX_DAILY_SIGNALS) {
             console.log(`     ↳ Held: daily cap of ${MAX_DAILY_SIGNALS} signals already reached`);
-            await dispatchSkip(ticker, `Daily cap of ${MAX_DAILY_SIGNALS} signals already reached — this ${result.confidence}% ${result.side} ${result.type} setup was held back from subscribers for today`);
           } else {
             dailySignalCount++;
             await dispatchSignal(signal);
@@ -302,13 +303,19 @@ app.get("/callback", async (req, res) => {
 
 app.get("/api/signals", (req, res) => {
   const { plan = "free", limit = 100 } = req.query;
-  let filtered = signals.slice(0, parseInt(limit));
+
+  // Only ever show subscribers what actually went out to Discord — a signal
+  // held back by the confidence floor or the daily cap still lives in
+  // `signals` (for your own records), but it was never delivered, so it
+  // shouldn't show up on the dashboard as if it had been.
+  let filtered = signals.filter(s => s.delivered);
 
   // Gate futures signals to Pro only
   if (plan !== "pro") {
     filtered = filtered.filter(s => !s.isFutures && !s.ticker?.startsWith("/"));
   }
-  res.json(filtered);
+
+  res.json(filtered.slice(0, parseInt(limit)));
 });
 
 app.get("/api/status", (req, res) => {

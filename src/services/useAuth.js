@@ -17,30 +17,32 @@ export default function useAuth() {
   const isPro      = session?.plan === "pro";
 
   async function login(email) {
-    // Try the scanner first — if it's running, verify against real subscriber list
+    // No fallback anymore — if the scanner can't be reached or doesn't
+    // recognize the email, login fails with a real error instead of quietly
+    // granting free access. (Previously this fell back to logging anyone in
+    // as "free" if the request failed, which was a dev-only convenience that
+    // never got removed once the scanner was actually deployed.)
+    let res;
     try {
-      const res = await fetch(`${SCANNER_URL}/api/verify`, {
+      res = await fetch(`${SCANNER_URL}/api/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.toLowerCase().trim() }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.plan === "none") throw new Error("No account found for that email. Sign up first.");
-        const sess = { email: data.email, plan: data.plan, verified_at: Date.now() };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
-        setSession(sess);
-        return sess;
-      }
-    } catch (err) {
-      // If scanner is offline (local dev, not deployed yet), fall back to
-      // letting anyone log in as "free" so you can see the dashboard
-      if (err.message.includes("No account")) throw err;
-      console.warn("Scanner offline — using fallback login");
+    } catch {
+      throw new Error("Couldn't reach the signal service — please try again in a moment.");
     }
 
-    // Fallback: accept any email as free (remove this once scanner is deployed)
-    const sess = { email: email.toLowerCase().trim(), plan: "free", verified_at: Date.now() };
+    if (!res.ok) {
+      throw new Error("Couldn't reach the signal service — please try again in a moment.");
+    }
+
+    const data = await res.json();
+    if (data.plan === "none") {
+      throw new Error("No account found for that email. Sign up first.");
+    }
+
+    const sess = { email: data.email, plan: data.plan, verified_at: Date.now() };
     localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
     setSession(sess);
     return sess;
