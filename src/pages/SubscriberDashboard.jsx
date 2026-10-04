@@ -127,7 +127,7 @@ export default function SubscriberDashboard({ onNavigate = () => {} }) {
         {[
           { label: "SIGNALS TODAY",  value: signals.length,              sub: `${buyCount} buy · ${sellCount} sell`, color: "#4a9adf" },
           { label: "AVG CONFIDENCE", value: signals.length ? `${avgConf}%` : "—", sub: "this session", color: "#00c97a" },
-          { label: "NEXT SCAN",      value: status?.nextScanAt ? fmtAgo(status.nextScanAt).replace(" ago", "") : "—", sub: `${(status?.scanInterval || 900000) / 60000}min interval`, color: "#e0a030" },
+          { label: "NEXT SCAN",      value: "—", sub: `${(status?.scanInterval || 900000) / 60000}min interval`, color: "#e0a030" },
           { label: "YOUR PLAN",      value: isPro ? "PRO" : "FREE",      sub: isPro ? "Full access" : "Options only", color: isPro ? "#00c97a" : "#4a9adf" },
         ].map((s, i) => (
           <div key={i} style={{ background: "#080b0f", padding: "12px 16px", borderRight: i < 3 ? "1px solid #0a1020" : "none" }}>
