@@ -355,7 +355,7 @@ export default function AboutPage({ onNavigate = () => {} }) {
         <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
           <AnimSection>
             <div className="section-label" style={{ justifyContent: "center", display: "flex" }}>READY TO START</div>
-            <h2 className="section-title" style={{ marginBottom: 16 }}>Join over 170 active subscribers</h2>
+            <h2 className="section-title" style={{ marginBottom: 16 }}>Join our free community</h2>
             <p style={{ fontSize: 15, color: "#3a5a7a", marginBottom: 36, maxWidth: 440, margin: "0 auto 36px" }}>
               Start For Free. Full access, no credit card required.
             </p>

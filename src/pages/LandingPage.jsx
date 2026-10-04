@@ -7,8 +7,8 @@ const NAV_LINKS = ["About", "Learn to Trade", "Pricing"];
 
 const STATS = [
   { value: "74.2%", label: "Win Rate", sub: "Last 90 days" },
-  { value: "3.8x", label: "Avg Risk/Reward", sub: "Per signal" },
-  { value: "1,240+", label: "Signals Sent", sub: "This year" },
+  { value: "2.6x", label: "Avg Risk/Reward", sub: "Per signal" },
+  { value: "700+", label: "Signals Sent", sub: "This year" },
   { value: "94%", label: "Delivery Rate", sub: "Discord" },
 ];
 
