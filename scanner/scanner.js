@@ -62,7 +62,10 @@ function isRepeatSignal(ticker, side, type) {
 // Railway at all: the server keeps running (dashboard, signups, Stripe
 // webhook all still work), it just stops calling Schwab/Claude until you
 // resume it. Resets to false on every redeploy/restart, so a normal push
-// never accidentally leaves it paused. Toggle it with:
+// never accidentally leaves it paused — and also resets automatically at the
+// next ET trading day (see checkDailyReset() below), so if you pause it and
+// forget to resume, the most it ever costs you is the rest of that one day,
+// not every day after it silently. Toggle it with:
 //   POST /api/admin/pause  -H "x-admin-key: <ADMIN_KEY>"
 //   POST /api/admin/resume -H "x-admin-key: <ADMIN_KEY>"
 let scanningPaused = false;
@@ -84,6 +87,7 @@ const MAX_DAILY_SIGNALS = parseInt(process.env.MAX_DAILY_SIGNALS) || 10;
 const MIN_DISPATCH_CONFIDENCE = parseInt(process.env.MIN_DISPATCH_CONFIDENCE) || 75;
 let dailySignalCount = 0;
 let dailySignalDate = null;
+let dailyCapLogged = false; // prints the "cap reached" line once per day, not every remaining scan cycle
 
 function getETDateString() {
   return new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
@@ -94,6 +98,16 @@ function checkDailyReset() {
   if (dailySignalDate !== today) {
     dailySignalDate = today;
     dailySignalCount = 0;
+    dailyCapLogged = false;
+    if (scanningPaused) {
+      // A manual pause is meant to mean "stop for today," not "stop
+      // forever" — but until now nothing ever cleared it, so forgetting to
+      // call /api/admin/resume left scanning silently off indefinitely
+      // (it only ever reset on a redeploy/restart). Clear it here too, on
+      // the same day-rollover check as the signal cap above.
+      scanningPaused = false;
+      console.log("  ▶ New trading day — clearing a manual pause left on from a previous day");
+    }
   }
 }
 
@@ -122,6 +136,15 @@ async function saveSignals() {
 
 async function runScan() {
   if (isScanning) { console.log("  Scan already running — skipping"); return; }
+
+  // Runs before the pause check below on purpose: scanningPaused's own
+  // day-rollover reset lives inside checkDailyReset(), so if this ran after
+  // the pause short-circuit, a pause would return out of runScan() every
+  // time and that reset would never be reached — exactly the bug that let a
+  // forgotten pause from one day silently swallow every scan the next day
+  // too, until the market had already been open for hours.
+  checkDailyReset();
+
   if (!isAuthorized()) { console.warn("  [Schwab] Not authorized — skipping scan. Visit /auth"); scheduleNextScan(); return; }
 
   if (scanningPaused) {
@@ -139,9 +162,14 @@ async function runScan() {
   stats.lastScan = start;
   const log = { ts: start.toISOString(), phase, results: [] };
 
-  checkDailyReset();
   if (dailySignalCount >= MAX_DAILY_SIGNALS) {
-    console.log(`  💤 Daily cap of ${MAX_DAILY_SIGNALS} signals already reached — skipping analysis for the rest of today (saves the Claude API cost too). Resumes automatically at the next ET trading day.`);
+    // Only the first time the cap is hit each day — otherwise this repeats
+    // on every remaining scan cycle (every 5-30min for hours) for no reason,
+    // since nothing about it changes until tomorrow.
+    if (!dailyCapLogged) {
+      console.log(`  💤 Daily cap of ${MAX_DAILY_SIGNALS} signals reached — skipping analysis for the rest of today (saves the Claude API cost too). Resumes automatically at the next ET trading day.`);
+      dailyCapLogged = true;
+    }
     log.results.push({ ticker: "*", result: `daily cap reached (${dailySignalCount}/${MAX_DAILY_SIGNALS}) — scan skipped` });
     scanLog = [log, ...scanLog].slice(0, 50);
     isScanning = false;
@@ -251,15 +279,26 @@ async function runScan() {
   scheduleNextScan();
 }
 
+let loggedMarketClosed = false; // prints the "market closed" line once per closed stretch, not every 5min all night
+
 function scheduleNextScan() {
   if (scanTimer) clearTimeout(scanTimer);
   const phase = getMarketPhase();
   if (phase === "CLOSED") {
     nextScanAt = new Date(Date.now() + 5 * 60 * 1000);
     scanTimer = setTimeout(scheduleNextScan, 5 * 60 * 1000);
-    console.log(`  💤 Market closed — next check ${nextScanAt.toLocaleTimeString()}`);
+    // This re-checks every 5min purely by scheduling a timer — no Schwab or
+    // Claude call happens while closed, so the recheck itself costs nothing.
+    // It used to log every single recheck though (one line every 5min, all
+    // night), which is just noise. Log once when the market closes, then
+    // stay quiet until it's about to matter again.
+    if (!loggedMarketClosed) {
+      console.log(`  💤 Market closed — checking back every 5min, next real scan picks up once it reopens`);
+      loggedMarketClosed = true;
+    }
     return;
   }
+  loggedMarketClosed = false;
   const ms = getScanInterval(phase);
   nextScanAt = new Date(Date.now() + ms);
   scanTimer = setTimeout(runScan, ms);

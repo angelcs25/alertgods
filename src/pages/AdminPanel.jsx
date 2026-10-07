@@ -1,7 +1,14 @@
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import SignalComposer from "./SignalComposer";
 import AlertEngine from "./AlertEngine";
 import AlertSettings from "./AlertSettings";
+
+const SCANNER_URL = import.meta.env.VITE_SCANNER_URL || "http://localhost:3001";
+// Reuses the same password that already gates this /admin page (VITE_ADMIN)
+// as the scanner's ADMIN_KEY, instead of baking a second secret into the
+// public frontend bundle. For this to work, set Railway's ADMIN_KEY env var
+// to this exact same value.
+const ADMIN_KEY = import.meta.env.VITE_ADMIN;
 
 export default function AdminPanel({ onPublish, onNavigate, allSignals = [] }) {
   const [tab, setTab] = useState("compose");
@@ -9,6 +16,56 @@ export default function AdminPanel({ onPublish, onNavigate, allSignals = [] }) {
     try { return JSON.parse(localStorage.getItem("signalos_alert_config")) || {}; }
     catch { return {}; }
   });
+
+  // ─── Scanner pause/resume ──────────────────────────────────────────────────
+  // So pausing the scanner for the day doesn't require a curl command or a
+  // computer — just open this (already password-protected) admin page on
+  // your phone and tap the button.
+  const [scanStatus,   setScanStatus]   = useState(null); // null = not loaded yet
+  const [scanUnreachable, setScanUnreachable] = useState(false);
+  const [toggling,     setToggling]     = useState(false);
+  const [toggleError,  setToggleError]  = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      try {
+        const res = await fetch(`${SCANNER_URL}/api/status`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (!cancelled) { setScanStatus(data); setScanUnreachable(false); }
+      } catch {
+        if (!cancelled) setScanUnreachable(true);
+      }
+    }
+    poll();
+    const iv = setInterval(poll, 15000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
+
+  async function togglePause() {
+    if (!scanStatus) return;
+    const endpoint = scanStatus.scanningPaused ? "resume" : "pause";
+    setToggling(true);
+    setToggleError("");
+    try {
+      const res = await fetch(`${SCANNER_URL}/api/admin/${endpoint}`, {
+        method: "POST",
+        headers: { "x-admin-key": ADMIN_KEY },
+      });
+      if (!res.ok) {
+        throw new Error(res.status === 403
+          ? "Rejected — ADMIN_KEY on Railway doesn't match VITE_ADMIN"
+          : `Scanner returned ${res.status}`);
+      }
+      const data = await res.json();
+      setScanStatus(s => ({ ...s, scanningPaused: data.scanningPaused }));
+    } catch (e) {
+      setToggleError(e.message || "Couldn't reach the scanner — try again in a moment");
+    } finally {
+      setToggling(false);
+    }
+  }
 
   const mono = "'JetBrains Mono', 'Fira Code', monospace";
 
@@ -51,6 +108,45 @@ export default function AdminPanel({ onPublish, onNavigate, allSignals = [] }) {
         >
           ← SUBSCRIBER VIEW
         </button>
+      </div>
+
+      {/* Scanner pause/resume — the thing you actually want on your phone */}
+      <div style={{
+        padding: "10px 24px", borderBottom: "1px solid #111820", background: "#060a0e",
+        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11 }}>
+          <span style={{
+            width: 7, height: 7, borderRadius: "50%", display: "inline-block",
+            background: scanUnreachable ? "#e05050" : scanStatus?.scanningPaused ? "#e0a030" : "#00c97a",
+          }} />
+          <span style={{ color: "#8a9aaa" }}>
+            {scanUnreachable
+              ? "Can't reach scanner"
+              : !scanStatus
+                ? "Checking scanner…"
+                : scanStatus.scanningPaused
+                  ? "Scanner PAUSED"
+                  : `Scanner running (${scanStatus.dailySignalCount}/${scanStatus.maxDailySignals} today)`}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {toggleError && <span style={{ fontSize: 10, color: "#e05050" }}>{toggleError}</span>}
+          <button
+            onClick={togglePause}
+            disabled={!scanStatus || toggling}
+            style={{
+              background: scanStatus?.scanningPaused ? "#00c97a" : "#200808",
+              color: scanStatus?.scanningPaused ? "#030f08" : "#e05050",
+              border: `1px solid ${scanStatus?.scanningPaused ? "#00c97a" : "#300a0a"}`,
+              fontFamily: mono, fontSize: 10, fontWeight: 600, letterSpacing: "0.08em",
+              padding: "7px 16px", borderRadius: 2, cursor: !scanStatus || toggling ? "default" : "pointer",
+              opacity: !scanStatus || toggling ? 0.5 : 1,
+            }}
+          >
+            {toggling ? "…" : scanStatus?.scanningPaused ? "▶ RESUME SCANNING" : "⏸ PAUSE SCANNING"}
+          </button>
+        </div>
       </div>
 
       {/* Tab bar */}

@@ -5,8 +5,13 @@
 
 // Market phases and their scan intervals:
 //
-// PRE_MARKET   6:00–9:30 AM ET    → scan every 15 min (slower, less liquid)
-// OPEN         9:30–11:30 AM ET   → scan every 5 min  (first 2 hours — high volatility open)
+// PRE_MARKET   6:00–9:50 AM ET    → scan every 15 min (slower, less liquid)
+// OPEN         9:50–11:30 AM ET   → scan every 5 min  (skips the first 20min
+//                                   chop right off the bell — spreads are
+//                                   wide and direction isn't set yet, so this
+//                                   was mostly producing held-back signals
+//                                   anyway. Still covered at the slower
+//                                   PRE_MARKET cadence above.)
 // MID          11:30 AM–3:00 PM   → scan every 30 min (midday grind)
 // POWER_HOUR   3:00–4:00 PM ET    → scan every 5 min  (volume surges into close)
 // CLOSED       all other times    → no scans
@@ -48,7 +53,7 @@ export function getMarketPhase() {
 
   const t = totalMinutes;
   const PRE_OPEN   = 6 * 60;        // 6:00 AM
-  const OPEN       = 9 * 60 + 30;   // 9:30 AM
+  const OPEN       = 9 * 60 + 50;   // 9:50 AM — first high-frequency scan of the day
   const MID_START  = 11 * 60 + 30;  // 11:30 AM
   const POWER_HOUR = 15 * 60;       // 3:00 PM
   const CLOSE      = 16 * 60;       // 4:00 PM
@@ -68,8 +73,8 @@ export function getScanInterval(phase) {
 // Returns human-readable phase description for Claude's context
 export function getPhaseContext(phase) {
   const contexts = {
-    PRE_MARKET:  "Pre-market session (6-9:30 AM ET). Lower liquidity, wider spreads. Focus on gap setups and overnight moves. Be more selective.",
-    OPEN:        "Market open (9:30-11:30 AM ET). High volatility, high volume. This is prime time for 0DTE entries. Look for directional moves off the open.",
+    PRE_MARKET:  "Pre-market / first 20min after the bell (6-9:50 AM ET). Lower liquidity, wider spreads, direction not yet set. Focus on gap setups and overnight moves. Be more selective.",
+    OPEN:        "Market open (9:50-11:30 AM ET). High volatility, high volume, direction established. This is prime time for 0DTE entries. Look for directional moves off the open.",
     MID:         "Mid-day session (11:30 AM - 3 PM ET). Lower volatility, often choppy. Be very selective — only high-conviction setups. Theta decay accelerating on 0DTE.",
     POWER_HOUR:  "Power hour (3-4 PM ET). Volume surging into close. 0DTE gamma risk is extreme. Look for momentum continuation or late reversals. Tight stops required.",
     CLOSED:      "Market closed.",
