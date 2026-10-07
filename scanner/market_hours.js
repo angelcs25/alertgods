@@ -6,21 +6,25 @@
 // Market phases and their scan intervals:
 //
 // PRE_MARKET   6:00–9:50 AM ET    → scan every 15 min (slower, less liquid)
-// OPEN         9:50–11:30 AM ET   → scan every 5 min  (skips the first 20min
+// OPEN         9:50–11:30 AM ET   → scan every 10 min (skips the first 20min
 //                                   chop right off the bell — spreads are
 //                                   wide and direction isn't set yet, so this
 //                                   was mostly producing held-back signals
 //                                   anyway. Still covered at the slower
 //                                   PRE_MARKET cadence above.)
 // MID          11:30 AM–3:00 PM   → scan every 30 min (midday grind)
-// POWER_HOUR   3:00–4:00 PM ET    → scan every 5 min  (volume surges into close)
+// POWER_HOUR   3:00–4:00 PM ET    → scan every 15 min (volume surges into
+//                                   close, but every 5min here was most of
+//                                   the daily Claude API cost for little
+//                                   extra benefit — 15min still catches the
+//                                   close-session move)
 // CLOSED       all other times    → no scans
 
 const SCAN_INTERVALS = {
   PRE_MARKET:  15 * 60 * 1000,  // 15 minutes
-  OPEN:         5 * 60 * 1000,  //  5 minutes
+  OPEN:        10 * 60 * 1000,  // 10 minutes
   MID:         30 * 60 * 1000,  // 30 minutes
-  POWER_HOUR:   5 * 60 * 1000,  //  5 minutes
+  POWER_HOUR:  15 * 60 * 1000,  // 15 minutes
   CLOSED:       5 * 60 * 1000,  //  5 min (just to recheck)
 };
 

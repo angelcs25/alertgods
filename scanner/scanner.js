@@ -83,7 +83,7 @@ let scanningPaused = false;
 // still log to the admin channel so you keep visibility. Resets automatically
 // at the next ET calendar day. Tune both with MAX_DAILY_SIGNALS /
 // MIN_DISPATCH_CONFIDENCE in Railway — no code change needed.
-const MAX_DAILY_SIGNALS = parseInt(process.env.MAX_DAILY_SIGNALS) || 10;
+const MAX_DAILY_SIGNALS = parseInt(process.env.MAX_DAILY_SIGNALS) || 8;
 const MIN_DISPATCH_CONFIDENCE = parseInt(process.env.MIN_DISPATCH_CONFIDENCE) || 75;
 let dailySignalCount = 0;
 let dailySignalDate = null;
@@ -91,6 +91,13 @@ let dailyCapLogged = false; // prints the "cap reached" line once per day, not e
 
 function getETDateString() {
   return new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
+}
+
+// Same ET-calendar-day conversion as getETDateString(), but for an arbitrary
+// past timestamp instead of "right now" — used to filter /api/signals down
+// to today's deliveries only.
+function etDateStringOf(ts) {
+  return new Date(ts).toLocaleDateString("en-US", { timeZone: "America/New_York" });
 }
 
 function checkDailyReset() {
@@ -342,12 +349,18 @@ app.get("/callback", async (req, res) => {
 
 app.get("/api/signals", (req, res) => {
   const { plan = "free", limit = 100 } = req.query;
+  const today = getETDateString();
 
-  // Only ever show subscribers what actually went out to Discord — a signal
-  // held back by the confidence floor or the daily cap still lives in
+  // Only ever show subscribers what actually went out to Discord TODAY — a
+  // signal held back by the confidence floor or the daily cap still lives in
   // `signals` (for your own records), but it was never delivered, so it
-  // shouldn't show up on the dashboard as if it had been.
-  let filtered = signals.filter(s => s.delivered);
+  // shouldn't show up as if it had been. This used to just return the most
+  // recent `limit` delivered signals with no date filter at all, so on a day
+  // where fewer than `limit` signals have gone out (now capped at just a
+  // handful via MAX_DAILY_SIGNALS), the dashboard quietly backfilled the
+  // rest of the feed with days-old signals — which is exactly why it looked
+  // like it was still showing the very first trades it ever alerted.
+  let filtered = signals.filter(s => s.delivered && etDateStringOf(s.ts) === today);
 
   // Gate futures signals to Pro only
   if (plan !== "pro") {
