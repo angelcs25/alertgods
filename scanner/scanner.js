@@ -84,7 +84,7 @@ let scanningPaused = false;
 // at the next ET calendar day. Tune both with MAX_DAILY_SIGNALS /
 // MIN_DISPATCH_CONFIDENCE in Railway — no code change needed.
 const MAX_DAILY_SIGNALS = parseInt(process.env.MAX_DAILY_SIGNALS) || 8;
-const MIN_DISPATCH_CONFIDENCE = parseInt(process.env.MIN_DISPATCH_CONFIDENCE) || 75;
+const MIN_DISPATCH_CONFIDENCE = parseInt(process.env.MIN_DISPATCH_CONFIDENCE) || 72;
 let dailySignalCount = 0;
 let dailySignalDate = null;
 let dailyCapLogged = false; // prints the "cap reached" line once per day, not every remaining scan cycle
