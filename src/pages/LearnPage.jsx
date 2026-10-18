@@ -211,7 +211,7 @@ function ModuleCard({ mod, onClick, isOpen, onNavigate }) {
         <div>
           <p style={{ fontSize: 13, color: "#5a7a9a", lineHeight: 1.75, marginBottom: 16 }}>{mod.desc}</p>
           <div style={{ fontSize: 10, color: "#2a4060", letterSpacing: "0.1em", marginBottom: 10, fontFamily: "'JetBrains Mono', monospace" }}>TOPICS COVERED</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
+          <div className="topics-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px" }}>
             {mod.topics.map((t, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4a6a8a" }}>
                 <span style={{ color: mod.color, fontSize: 8 }}>▸</span>
@@ -373,10 +373,32 @@ export default function LearnPage({ onNavigate = () => {} }) {
           background-size: 40px 40px;
           pointer-events: none;
         }
+
+        /* ── Mobile ──
+           This whole page had zero responsive breakpoints before — every
+           grid was a fixed number of columns regardless of screen width,
+           which is why the module cards (2 columns), the quick-reference
+           cards (4 columns!), and the "how it works" two-column section all
+           squeezed down to unreadable slivers on a phone instead of
+           reflowing. Stacking them is simpler and more reliable here than a
+           swipe carousel, and it's the standard pattern for a
+           read-this-content page like this one (vs. a data table, where a
+           horizontal swipe makes more sense). */
+        @media (max-width: 900px) {
+          .pad-section { padding-left: 20px !important; padding-right: 20px !important; }
+          .modules-grid { grid-template-columns: 1fr !important; }
+          .topics-grid { grid-template-columns: 1fr !important; }
+          .how-grid { grid-template-columns: 1fr !important; gap: 36px !important; }
+          .quickref-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+
+        @media (max-width: 520px) {
+          .quickref-grid { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       {/* ── NAVBAR ── */}
-      <nav style={{
+      <nav className="pad-section" style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         padding: "0 40px", height: 60,
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -403,7 +425,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ position: "relative", padding: "140px 40px 80px", overflow: "hidden" }}>
+      <section className="pad-section" style={{ position: "relative", padding: "140px 40px 80px", overflow: "hidden" }}>
         <div className="grid-bg" />
         <div style={{ position: "absolute", width: 500, height: 500, background: "rgba(0,180,100,0.06)", borderRadius: "50%", filter: "blur(80px)", top: -100, right: -100, pointerEvents: "none" }} />
         <div style={{ maxWidth: 1100, margin: "0 auto", position: "relative", zIndex: 1 }}>
@@ -446,7 +468,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── MODULES ── */}
-      <section id="modules" style={{ padding: "100px 40px" }}>
+      <section id="modules" className="pad-section" style={{ padding: "100px 40px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <AnimSection>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 40, flexWrap: "wrap", gap: 16 }}>
@@ -462,7 +484,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
             </div>
           </AnimSection>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className="modules-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {filtered.map((mod, i) => (
               <AnimSection key={mod.id} delay={i * 0.06}>
                 <ModuleCard mod={mod} onClick={toggleModule} isOpen={openModule === mod.id} onNavigate={onNavigate} />
@@ -473,10 +495,10 @@ export default function LearnPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── HOW IT'S STRUCTURED ── */}
-      <section style={{ padding: "80px 40px", background: "#060d18", borderTop: "1px solid #0a1828", borderBottom: "1px solid #0a1828" }}>
+      <section className="pad-section" style={{ padding: "80px 40px", background: "#060d18", borderTop: "1px solid #0a1828", borderBottom: "1px solid #0a1828" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <AnimSection>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+            <div className="how-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
               <div>
                 <div className="section-label">HOW IT WORKS</div>
                 <h2 className="section-title" style={{ marginBottom: 20 }}>Built around how we actually trade</h2>
@@ -516,7 +538,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── QUICK REFERENCE CARDS ── */}
-      <section style={{ padding: "100px 40px" }}>
+      <section className="pad-section" style={{ padding: "100px 40px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <AnimSection>
             <div style={{ marginBottom: 48 }}>
@@ -524,7 +546,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
               <h2 className="section-title">Key concepts at a glance</h2>
             </div>
           </AnimSection>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <div className="quickref-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {[
               { label: "Delta", value: "0.50Δ", desc: "ATM option moves $0.50 for every $1 in stock", color: "#4a9adf" },
               { label: "Theta", value: "−$0.05/day", desc: "Time decay costs you ~5 cents per contract daily", color: "#e05050" },
@@ -548,7 +570,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── FAQ ── */}
-      <section style={{ padding: "80px 40px", background: "#060d18", borderTop: "1px solid #0a1828" }}>
+      <section className="pad-section" style={{ padding: "80px 40px", background: "#060d18", borderTop: "1px solid #0a1828" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <AnimSection>
             <div style={{ marginBottom: 48 }}>
@@ -575,7 +597,7 @@ export default function LearnPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── CTA BANNER ── */}
-      <section style={{ padding: "100px 40px" }}>
+      <section className="pad-section" style={{ padding: "100px 40px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
           <AnimSection>
             <div className="section-label" style={{ justifyContent: "center", display: "flex" }}>START LEARNING</div>
@@ -592,8 +614,8 @@ export default function LearnPage({ onNavigate = () => {} }) {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ padding: "40px", borderTop: "1px solid #0a1828", background: "#050c18" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <footer className="pad-section" style={{ padding: "40px", borderTop: "1px solid #0a1828", background: "#050c18" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#1a3a5a", fontSize: 12, letterSpacing: "0.1em" }}>◈ ALERTGODS</span>
           <span style={{ fontSize: 11, color: "#1a2a3a" }}>Trading involves risk. Past performance is not indicative of future results.</span>
           <div style={{ display: "flex", gap: 20 }}>
