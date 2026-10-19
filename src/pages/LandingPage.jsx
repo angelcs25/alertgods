@@ -7,8 +7,8 @@ const NAV_LINKS = ["About", "Learn to Trade", "Pricing"];
 
 const STATS = [
   { value: "74.2%", label: "Win Rate", sub: "Last 90 days" },
-  { value: "2.6x", label: "Avg Risk/Reward", sub: "Per signal" },
-  { value: "700+", label: "Signals Sent", sub: "This year" },
+  { value: "3.8x", label: "Avg Risk/Reward", sub: "Per signal" },
+  { value: "1,240+", label: "Signals Sent", sub: "This year" },
   { value: "94%", label: "Delivery Rate", sub: "Discord" },
 ];
 
@@ -51,7 +51,7 @@ const PLANS = [
     period: "/mo",
     color: "#2a4a6a",
     accent: "#4a8adf",
-    features: ["Options signals only", "Discord delivery", "2-6 signals/day", "strategy breakdown"],
+    features: ["Options signals only", "Discord delivery", "1-5 signals/week"],
     cta: "Start For Free",
   },
   {
@@ -61,7 +61,7 @@ const PLANS = [
     color: "#0a3a5a",
     accent: "#00c97a",
     featured: true,
-    features: ["Options + Futures signals", "Instant Discord delivery", "3-6 signals/day", "Live dashboard access", "Strategy breakdown"],
+    features: ["Options + Futures signals", "Instant Discord delivery", "1-5 signals/day", "Live dashboard access", "Strategy breakdown"],
     cta: "Get Started",
   },
   // {
@@ -358,8 +358,6 @@ export default function LandingPage({ onNavigate = () => {} }) {
            starts on this element is treated unambiguously as a side-scroll
            instead of sometimes being captured by the page's vertical scroll. */
         .dash-scroll {
-          width: 100%;
-          max-width: 100%;
           overflow-x: auto;
           overflow-y: hidden;
           -webkit-overflow-scrolling: touch;
@@ -421,7 +419,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
 
           .hero-section { padding: 96px 20px 48px !important; min-height: auto !important; }
           .two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
-          .hero-title { font-size: clamp(26px, 6vw, 40px) !important; line-height: 1.1 !important; }
+          .hero-title { font-size: clamp(30px, 7vw, 48px) !important; line-height: 1.08 !important; }
           .pad-section { padding-left: 20px !important; padding-right: 20px !important; }
           section.pad-section { padding-top: 64px !important; padding-bottom: 64px !important; }
 
@@ -465,14 +463,14 @@ export default function LandingPage({ onNavigate = () => {} }) {
           .nav-actions .cta-ghost { display: none; }
           .nav-menu-login { display: block; }
           .nav-actions .cta-primary { padding: 8px 14px !important; }
-          .hero-title { font-size: clamp(19px, 6.5vw, 25px) !important; line-height: 1.18 !important; letter-spacing: -0.01em !important; }
+          .hero-title { font-size: clamp(24px, 8vw, 32px) !important; line-height: 1.15 !important; letter-spacing: -0.01em !important; }
           .hero-stats { gap: 16px !important; }
         }
 
         /* Smaller/older phones (e.g. iPhone SE, 375px and under) — the clamp
            above still measures too wide for "Futures Signals" at this size. */
         @media (max-width: 380px) {
-          .hero-title { font-size: clamp(17px, 6vw, 21px) !important; }
+          .hero-title { font-size: clamp(21px, 7.5vw, 27px) !important; }
           .hero-stats { gap: 10px !important; }
           .hero-stats > div { font-size: 10px !important; }
         }
@@ -570,7 +568,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
             </div>
 
             {/* Right: dashboard preview */}
-            <div style={{ position: "relative", minWidth: 0 }}>
+            <div style={{ position: "relative" }}>
               <div style={{ position: "absolute", inset: -20, background: "radial-gradient(ellipse at center, rgba(0,80,160,0.15) 0%, transparent 70%)", borderRadius: 20, pointerEvents: "none" }} />
               <div className="dash-hint">⟷ Swipe to see the full table</div>
               <DashboardPreview />
