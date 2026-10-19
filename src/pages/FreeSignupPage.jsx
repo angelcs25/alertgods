@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Your Discord invite link — replace with yours
-const DISCORD_INVITE     = "https://discord.gg/s7vHMnGfX";
+const DISCORD_INVITE     = "https://discord.gg/dn8mzQUSc";
 const FORMSPREE_ID       = import.meta.env.VITE_FORMSPREE_ID || "";
 const ADMIN_WEBHOOK      = import.meta.env.VITE_ADMIN_DISCORD || "";
 // Base URL of the scanner backend (Railway), e.g. https://your-scanner.railway.app
