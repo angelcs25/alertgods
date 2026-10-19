@@ -7,8 +7,8 @@
 // a POST /api/contact route in scanner.js that emails or Discords the message.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CONTACT_EMAIL = "support@alertgods.com"; // ← update once your inbox is live
-const DISCORD_INVITE = "https://discord.gg/s7vHMnGfX";
+const CONTACT_EMAIL = "angelcs25ore@hotmail.com"; // ← update once your inbox is live
+const DISCORD_INVITE = "https://discord.gg/dn8mzQUSc";
 
 export default function ContactPage({ onNavigate = () => {} }) {
   const mono = "'JetBrains Mono','Fira Code',monospace";

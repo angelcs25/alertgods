@@ -767,7 +767,7 @@ export default function LandingPage({ onNavigate = () => {} }) {
             {[
               { label: "Terms",   href: "#/terms" },
               { label: "Privacy", href: "#/privacy" },
-              { label: "Discord", href: "https://discord.gg/s7vHMnGfX", external: true },
+              { label: "Discord", href: "https://discord.gg/dn8mzQUSc", external: true },
               { label: "Contact", href: "#/contact" },
             ].map(l => (
               <a
