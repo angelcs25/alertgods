@@ -5,23 +5,29 @@
 
 // Market phases and their scan intervals:
 //
-// PRE_MARKET   6:00–9:50 AM ET    → scan every 15 min (slower, less liquid)
-// OPEN         9:50–11:30 AM ET   → scan every 10 min (skips the first 20min
-//                                   chop right off the bell — spreads are
-//                                   wide and direction isn't set yet, so this
-//                                   was mostly producing held-back signals
-//                                   anyway. Still covered at the slower
-//                                   PRE_MARKET cadence above.)
+// CLOSED       all other times incl. 12:00am–9:30 AM ET → no scans at all —
+//                                   no Schwab calls, no Claude calls, no
+//                                   cost, nothing before the bell. Previously
+//                                   a "PRE_MARKET" phase scanned (and could
+//                                   dispatch real signals!) starting at
+//                                   6:00 AM — that's gone.
+// EARLY_OPEN   9:30–9:50 AM ET    → scans every 10 min like OPEN below, but
+//                                   signals are deliberately held back from
+//                                   subscribers (see scanner.js) — spreads
+//                                   are wide and direction isn't set yet
+//                                   right off the bell, so this window exists
+//                                   purely to have eyes on the open without
+//                                   acting on the first 20min of chop.
+// OPEN         9:50–11:30 AM ET   → scan every 10 min, signals go out normally
 // MID          11:30 AM–3:00 PM   → scan every 30 min (midday grind)
 // POWER_HOUR   3:00–4:00 PM ET    → scan every 15 min (volume surges into
 //                                   close, but every 5min here was most of
 //                                   the daily Claude API cost for little
 //                                   extra benefit — 15min still catches the
 //                                   close-session move)
-// CLOSED       all other times    → no scans
 
 const SCAN_INTERVALS = {
-  PRE_MARKET:  15 * 60 * 1000,  // 15 minutes
+  EARLY_OPEN:  10 * 60 * 1000,  // 10 minutes — scans, but dispatch is held back
   OPEN:        10 * 60 * 1000,  // 10 minutes
   MID:         30 * 60 * 1000,  // 30 minutes
   POWER_HOUR:  15 * 60 * 1000,  // 15 minutes
@@ -56,17 +62,17 @@ export function getMarketPhase() {
   if (day === 0 || day === 6) return "CLOSED";
 
   const t = totalMinutes;
-  const PRE_OPEN   = 6 * 60;        // 6:00 AM
-  const OPEN       = 9 * 60 + 50;   // 9:50 AM — first high-frequency scan of the day
-  const MID_START  = 11 * 60 + 30;  // 11:30 AM
-  const POWER_HOUR = 15 * 60;       // 3:00 PM
-  const CLOSE      = 16 * 60;       // 4:00 PM
+  const MARKET_OPEN    = 9 * 60 + 30;  // 9:30 AM — nothing scans before this, period
+  const EARLY_OPEN_END = 9 * 60 + 50;  // 9:50 AM — end of the held-back "chop" window
+  const MID_START       = 11 * 60 + 30; // 11:30 AM
+  const POWER_HOUR      = 15 * 60;      // 3:00 PM
+  const CLOSE           = 16 * 60;      // 4:00 PM
 
-  if (t < PRE_OPEN)   return "CLOSED";
-  if (t < OPEN)       return "PRE_MARKET";
-  if (t < MID_START)  return "OPEN";
-  if (t < POWER_HOUR) return "MID";
-  if (t < CLOSE)      return "POWER_HOUR";
+  if (t < MARKET_OPEN)    return "CLOSED";
+  if (t < EARLY_OPEN_END) return "EARLY_OPEN";
+  if (t < MID_START)      return "OPEN";
+  if (t < POWER_HOUR)     return "MID";
+  if (t < CLOSE)          return "POWER_HOUR";
   return "CLOSED";
 }
 
@@ -77,7 +83,7 @@ export function getScanInterval(phase) {
 // Returns human-readable phase description for Claude's context
 export function getPhaseContext(phase) {
   const contexts = {
-    PRE_MARKET:  "Pre-market / first 20min after the bell (6-9:50 AM ET). Lower liquidity, wider spreads, direction not yet set. Focus on gap setups and overnight moves. Be more selective.",
+    EARLY_OPEN:  "First 20min after the bell (9:30-9:50 AM ET). Spreads are wide and direction isn't set yet. Analyze normally and be honest about setups, but know that whatever you return here is held back from subscribers regardless of confidence — this window is for visibility only, not dispatch.",
     OPEN:        "Market open (9:50-11:30 AM ET). High volatility, high volume, direction established. This is prime time for 0DTE entries. Look for directional moves off the open.",
     MID:         "Mid-day session (11:30 AM - 3 PM ET). Lower volatility, often choppy. Be very selective — only high-conviction setups. Theta decay accelerating on 0DTE.",
     POWER_HOUR:  "Power hour (3-4 PM ET). Volume surging into close. 0DTE gamma risk is extreme. Look for momentum continuation or late reversals. Tight stops required.",

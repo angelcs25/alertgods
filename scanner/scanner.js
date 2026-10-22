@@ -258,6 +258,13 @@ async function runScan() {
             // to the admin Discord channel, since these happen often enough
             // to be noise rather than something worth a notification for.
             console.log(`     ↳ Held: ${result.confidence}% is below the ${MIN_DISPATCH_CONFIDENCE}% dispatch bar`);
+          } else if (phase === "EARLY_OPEN") {
+            // First 20min after the bell — deliberately never dispatched,
+            // regardless of confidence. Spreads are wide and direction isn't
+            // set yet right off the open, so this window exists to have eyes
+            // on the market without acting on the chop. Console only, same
+            // reasoning as the confidence hold above.
+            console.log(`     ↳ Held: within the first 20min of the open (9:30-9:50 ET) — chop window, never dispatched`);
           } else if (dailySignalCount >= MAX_DAILY_SIGNALS) {
             console.log(`     ↳ Held: daily cap of ${MAX_DAILY_SIGNALS} signals already reached`);
           } else {
