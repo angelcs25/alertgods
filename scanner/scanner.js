@@ -83,7 +83,7 @@ let scanningPaused = false;
 // still log to the admin channel so you keep visibility. Resets automatically
 // at the next ET calendar day. Tune both with MAX_DAILY_SIGNALS /
 // MIN_DISPATCH_CONFIDENCE in Railway — no code change needed.
-const MAX_DAILY_SIGNALS = parseInt(process.env.MAX_DAILY_SIGNALS) || 8;
+const MAX_DAILY_SIGNALS = parseInt(process.env.MAX_DAILY_SIGNALS) || 9;
 const MIN_DISPATCH_CONFIDENCE = parseInt(process.env.MIN_DISPATCH_CONFIDENCE) || 72;
 let dailySignalCount = 0;
 let dailySignalDate = null;
